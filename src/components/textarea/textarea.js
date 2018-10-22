@@ -11,6 +11,7 @@ const TEXTAREA_DEFAULTS = {
   autoGrowAnimate: true,
   autoGrowAnimateSpeed: 200,
   characterCounter: true,
+  maxLength: null,
   printable: true,
   charRemainingText: null,
   charMaxText: null
@@ -24,7 +25,8 @@ const TEXTAREA_DEFAULTS = {
 * @param {boolean} [settings.autoGrow = false] Will automatically expand the textarea to fit the contents when typing.
 * @param {boolean} [settings.autoGrowAnimate  = true] Will animate the textarea grow.
 * @param {number} [settings.autoGrowAnimateSpeed = 200] The speed of the animation.
-* @param {boolean} [settings.characterCounter = true] Displays a counter that counts down from the maximum
+* @param {boolean} [settings.characterCounter = true] Displays a counter that counts down from the maximum.
+* @param {boolean} [settings.maxLength = number] Maximum characters allowed in textarea.
 * length allowed.
 * @param {boolean} [settings.printable = true] Determines whether or not the text area can be displayed on a
 * printed page.
@@ -58,7 +60,7 @@ Textarea.prototype = {
       this.element.is('.textarea-sm') ? 'input-sm' : //eslint-disable-line
         this.element.is('.textarea-lg') ? 'input-lg' : ''); //eslint-disable-line
 
-    if (this.settings.characterCounter && this.element.attr('maxlength')) {
+    if (this.settings.characterCounter && this.getMaxLength()) {
       this.counter = $('<span class="textarea-wordcount">Chars Left..</span>').insertAfter(this.element);
     }
     if (this.settings.printable) {
@@ -204,7 +206,7 @@ Textarea.prototype = {
     const value = self.element.val();
     const isExtraLinebreaks = this.isChrome || this.isSafari;
     const length = value.length + (isExtraLinebreaks ? this.countLinebreaks(value) : 0);
-    const max = parseInt(self.element.attr('maxlength'), 10);
+    const max = self.getMaxLength();
     const remaining = (parseInt(max, 10) - length);
     let text = (self.settings.charRemainingText ? self.settings.charRemainingText : //eslint-disable-line
       (Locale.translate('CharactersLeft') === 'CharactersLeft' ? 'Characters Left' :
@@ -271,6 +273,21 @@ Textarea.prototype = {
   },
 
   /**
+   * Returns max length if setting exists
+   * @private
+   * @returns {number} maxLength property in settings if exist otherwise maxlength attribute is returned if exist
+   */
+  getMaxLength() {
+    if (this.settings.maxLength) {
+      return this.settings.maxLength;
+    } else if (this.element.attr('maxlength')) {
+      return parseInt(this.element.attr('maxlength'), 10);
+    }
+
+    return undefined;
+  },
+
+  /**
    * Destroys this component instance and unlinks it from its element.
    */
   destroy() {
@@ -294,7 +311,7 @@ Textarea.prototype = {
       const value = self.element.val();
       const isExtraLinebreaks = self.isChrome || self.isSafari;
       const length = value.length + (isExtraLinebreaks ? self.countLinebreaks(value) : 0);
-      const max = parseInt(self.element.attr('maxlength'), 10);
+      const max = self.getMaxLength();
 
       self.updateCounter();
 
@@ -318,7 +335,7 @@ Textarea.prototype = {
       const value = self.element.val();
       const isExtraLinebreaks = self.isChrome || self.isSafari;
       const length = value.length + (isExtraLinebreaks ? self.countLinebreaks(value) : 0);
-      const max = parseInt(self.element.attr('maxlength'), 10);
+      const max = self.getMaxLength();
 
       if ([97, 99, 118, 120].indexOf(e.which) > -1 && (e.metaKey || e.ctrlKey)) {
         self.updateCounter();
