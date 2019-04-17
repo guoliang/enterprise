@@ -23,6 +23,8 @@ const Locale = {  // eslint-disable-line
   currentLocale: { name: '', data: {} }, // default
   cultures: {},
   culturesPath: existingCulturePath,
+  supportedLocales: ['af-ZA', 'ar-EG', 'ar-SA', 'bg-BG', 'cs-CZ', 'da-DK', 'de-DE', 'el-GR', 'en-AU', 'en-GB', 'en-IN', 'en-NZ', 'en-US', 'en-ZA', 'es-AR', 'es-ES', 'es-MX', 'es-US', 'et-EE', 'fi-FI', 'fr-CA', 'fr-FR', 'he-IL', 'hi-IN', 'hr-HR', 'hu-HU', 'id-ID', 'it-IT', 'ja-JP', 'ko-KR', 'lt-LT', 'lv-LV', 'ms-bn', 'ms-my', 'nb-NO', 'nl-NL', 'no-NO', 'pl-PL', 'pt-BR', 'pt-PT', 'ro-RO', 'ru-RU', 'sk-SK', 'sl-SI', 'sv-SE', 'th-TH', 'tr-TR', 'uk-UA', 'vi-VN', 'zh-CN', 'zh-Hans', 'zh-Hant', 'zh-TW'],
+
 
   /**
    * Sets the Lang in the Html Header
@@ -103,6 +105,37 @@ const Locale = {  // eslint-disable-line
    * @param {string} locale The locale to check.
    * @returns {string} The actual locale to use.
    */
+  correctLocale: function correctLocale(locale) {
+    // Map incorrect java locale to correct locale
+    if (locale === 'in-ID') {
+      locale = 'id-ID';
+    }
+    if (locale.substr(0, 2) === 'iw') {
+      locale = 'he-IL';
+    }
+
+    var lang = locale.split('-')[0];
+    if (this.supportedLocales.indexOf(locale) === -1) {
+      locale = this.defaultLocales.filter(function (a) {
+        return a.lang === lang;
+      });
+
+      if (locale && locale[0]) {
+        return locale[0].default;
+      }
+
+      locale = this.defaultLocale;
+    }
+
+    return locale;
+  },
+
+  /**
+   * Internally stores a new culture file for future use.
+   * @private
+   * @param {string} locale The locale to check.
+   * @returns {string} The actual locale to use.
+   */
   defaultLocale(locale) {
     const lang = locale.split('-')[0];
     const defaults = [
@@ -173,27 +206,30 @@ const Locale = {  // eslint-disable-line
 
   /**
    * Append the local script to the page.
+   * @private
    * @param {string} locale The locale name to append.
    * @param {boolean} isCurrent If we should set this as the current locale
+   * @param {boolean} useLocale If we should resolve the promise base on locale
    * @returns {void}
    */
-  appendLocaleScript(locale, isCurrent) {
-    const script = document.createElement('script');
-    script.src = `${this.getCulturesPath() + locale}.js`;
+  appendLocaleScript: function appendLocaleScript(locale, isCurrent, useLocale) {
+    var _this = this;
 
-    script.onload = () => {
+    var script = document.createElement('script');
+    script.src = this.getCulturesPath() + locale + '.js';
+
+    script.onload = function () {
       if (isCurrent) {
-        this.setCurrentLocale(locale, this.cultures[locale]);
+        _this.setCurrentLocale(locale, _this.cultures[locale]);
+        _this.dff.resolve(locale);
       }
-      this.addCulture(locale, this.currentLocale.data);
-
-      if (isCurrent) {
-        this.dff.resolve(this.currentLocale.name);
+      if (useLocale) {
+        _this.dff[locale].resolve(locale);
       }
     };
 
-    script.onerror = () => {
-      this.dff.reject();
+    script.onerror = function () {
+      _this.dff.reject();
     };
 
     if (typeof window.SohoConfig === 'object' && typeof window.SohoConfig.nonce === 'string') {
@@ -252,6 +288,40 @@ const Locale = {  // eslint-disable-line
   },
 
   /**
+   * Loads the locale without setting it.
+   * @param {string} locale The locale to fetch and set.
+   * @returns {jquery.deferred} which is resolved once the locale culture is retrieved and set
+   */
+  getLocale: function getLocale(locale) {
+    var self = this;
+    this.dff[locale] = $.Deferred();
+    locale = this.correctLocale(locale);
+
+    if (locale === '') {
+      var dff = $.Deferred();
+      dff.resolve();
+      return dff.promise();
+    }
+
+    if (locale && locale !== 'en-US' && !this.cultures['en-US']) {
+      this.appendLocaleScript('en-US', false, true);
+    }
+
+    if (locale && !this.cultures[locale] && this.currentLocale.name !== locale) {
+      this.appendLocaleScript(locale, false, true);
+    }
+
+    if (locale && self.currentLocale.data && self.currentLocale.dataName === locale) {
+      this.dff[locale].resolve(locale);
+    }
+    if (self.cultures[locale] && this.cultureInHead()) {
+      this.dff[locale].resolve(locale);
+    }
+
+    return this.dff[locale].promise();
+  },
+
+  /**
    * Chooses a stored locale dataset and sets it as "current"
    * @param {string} name the 4-character Locale ID
    * @param {object} data translation data and locale-specific functions, such as calendars.
@@ -268,84 +338,89 @@ const Locale = {  // eslint-disable-line
   },
 
   /**
-  * Formats a Date Object and return it parsed in the current locale.
-  * @param {date} value The date to show in the current locale.
-  * @param {object} attribs Additional formatting settings.
-  * @returns {string} the formatted date.
-  */
-  formatDate(value, attribs) {
-    // We will use http://www.unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table
-    if (!attribs) {
-      attribs = { date: 'short' }; // can be date, time, datetime or pattern
+    * Formats a date object and returns it parsed back using the current locale or settings.
+    * The symbols for date formatting use the CLDR at https://bit.ly/2Jg0a6m
+    * @param {date} value The date to show in the current locale.
+    * @param {object} options Additional date formatting settings.
+    * @returns {string} the formatted date.
+    */
+  formatDate: function formatDate(value, options) {
+    if (!options) {
+      options = { date: 'short' }; // can be date, time, datetime or pattern
+    }
+    var localeData = this.useLocale(options);
+
+    if (!value) {
+      return undefined;
+    }
+
+    if (value === '0000' || value === '000000' || value === '00000000') {
+      // Means no date in some applications
+      return '';
+    }
+
+    // Convert if a timezone string.
+    if (!(value instanceof Date) && typeof value === 'string' && value.indexOf('Z') > -1) {
+      var tDate1 = new Date(value);
+      value = tDate1;
+    }
+
+    if (!(value instanceof Date) && typeof value === 'string' && value.indexOf('T') > -1) {
+      var _tDate = new Date(value);
+      value = _tDate;
+    }
+
+    // Convert if a string..
+    if (!(value instanceof Date) && typeof value === 'string') {
+      var tDate2 = Locale.parseDate(value, options);
+      if (isNaN(tDate2) && options.date === 'datetime' && value.substr(4, 1) === '-' && value.substr(7, 1) === '-') {
+        tDate2 = new Date(value.substr(0, 4), value.substr(5, 2) - 1, value.substr(8, 2), value.substr(11, 2), value.substr(14, 2), value.substr(17, 2));
+      }
+      value = tDate2;
+    }
+
+    if (!(value instanceof Date) && typeof value === 'number') {
+      var tDate3 = new Date(value);
+      value = tDate3;
     }
 
     if (!value) {
       return undefined;
     }
 
-    // Convert if a timezone string.
-    if (!(value instanceof Date) && typeof value === 'string' && value.indexOf('Z') > -1) {
-      const tDate1 = new Date(value);
-      value = tDate1;
+    var pattern = void 0;
+    var ret = '';
+    var cal = localeData.calendars ? localeData.calendars[0] : null;
+
+    if (options.pattern) {
+      pattern = options.pattern;
     }
 
-    if (!(value instanceof Date) && typeof value === 'string' && value.indexOf('T') > -1) {
-      const tDate1 = new Date(value);
-      value = tDate1;
+    if (options.date) {
+      pattern = cal.dateFormat[options.date];
     }
 
-    // Convert if a string..
-    if (!(value instanceof Date) && typeof value === 'string') {
-      let tDate2 = Locale.parseDate(value, attribs);
-      if (isNaN(tDate2) && attribs.date === 'datetime' &&
-        value.substr(4, 1) === '-' &&
-        value.substr(7, 1) === '-') {
-        tDate2 = new Date(
-          value.substr(0, 4),
-          value.substr(5, 2) - 1,
-          value.substr(8, 2),
-          value.substr(11, 2),
-          value.substr(14, 2),
-          value.substr(17, 2)
-        );
-      }
-      value = tDate2;
+    if (!pattern) {
+      pattern = cal.dateFormat.short;
     }
 
-    if (!(value instanceof Date) && typeof value === 'number') {
-      const tDate3 = new Date(value);
-      value = tDate3;
-    }
-
-    // TODO: Can we handle this if (this.dff.state()==='pending')
-    const data = this.currentLocale.data;
-    let pattern;
-    let ret = '';
-    const cal = (data.calendars ? data.calendars[0] : null);
-
-    if (attribs.pattern) {
-      pattern = attribs.pattern;
-    }
-
-    if (attribs.date) {
-      pattern = cal.dateFormat[attribs.date];
-    }
-
-    let day = value.getDate();
-    let month = value.getMonth();
-    let year = value.getFullYear();
-    const mins = value.getMinutes();
-    const hours = value.getHours();
-    const seconds = value.getSeconds();
+    var year = value instanceof Array ? value[0] : value.getFullYear();
+    var month = value instanceof Array ? value[1] : value.getMonth();
+    var day = value instanceof Array ? value[2] : value.getDate();
+    var dayOfWeek = value.getDay ? value.getDay() : '';
+    var hours = value instanceof Array ? value[3] : value.getHours();
+    var mins = value instanceof Array ? value[4] : value.getMinutes();
+    var seconds = value instanceof Array ? value[5] : value.getSeconds();
+    var millis = value instanceof Array ? value[6] : value.getMilliseconds();
 
     if (cal && cal.conversions) {
-      if (attribs.fromGregorian) {
-        const islamicParts = cal.conversions.fromGregorian(value);
+      if (options.fromGregorian) {
+        var islamicParts = cal.conversions.fromGregorian(value);
         day = islamicParts[2];
         month = islamicParts[1];
         year = islamicParts[0];
-      } else if (attribs.toGregorian) {
-        const gregorianDate = cal.conversions.toGregorian(year, month, day);
+      } else if (options.toGregorian) {
+        var gregorianDate = cal.conversions.toGregorian(year, month, day);
         day = gregorianDate.getDate();
         month = gregorianDate.getMonth();
         year = gregorianDate.getFullYear();
@@ -353,6 +428,7 @@ const Locale = {  // eslint-disable-line
     }
 
     // Special
+    pattern = pattern.replace('de', 'nnnnn');
     pattern = pattern.replace('ngày', 'nnnn');
     pattern = pattern.replace('tháng', 't1áng');
     pattern = pattern.replace('den', 'nnn');
@@ -367,20 +443,20 @@ const Locale = {  // eslint-disable-line
     ret = ret.replace('y', year);
 
     // Time
-    const showDayPeriods = ret.indexOf(' a') > -1;
+    var showDayPeriods = ret.indexOf(' a') > -1;
 
     if (showDayPeriods && hours === 0) {
       ret = ret.replace('hh', 12);
       ret = ret.replace('h', 12);
     }
 
-    ret = ret.replace('hh', (hours > 12 ? this.pad(hours - 12, 2) : this.pad(hours, 2)));
-    ret = ret.replace('h', (hours > 12 ? hours - 12 : hours));
+    ret = ret.replace('hh', hours > 12 ? this.pad(hours - 12, 2) : this.pad(hours, 2));
+    ret = ret.replace('h', hours > 12 ? hours - 12 : hours);
     ret = ret.replace('HH', this.pad(hours, 2));
     ret = ret.replace('H', hours);
     ret = ret.replace('mm', this.pad(mins, 2));
     ret = ret.replace('ss', this.pad(seconds, 2));
-    ret = ret.replace('SSS', this.pad(value.getMilliseconds(), 0));
+    ret = ret.replace('SSS', this.pad(millis, 0));
 
     // months
     ret = ret.replace('MMMM', cal ? cal.months.wide[month] : null); // full
@@ -392,19 +468,71 @@ const Locale = {  // eslint-disable-line
 
     // PM
     if (cal) {
-      ret = ret.replace(' a', ` ${hours >= 12 ? cal.dayPeriods[1] : cal.dayPeriods[0]}`);
-      ret = ret.replace('EEEE', cal.days.wide[value.getDay()]); // Day of Week
+      ret = ret.replace(' a', ' ' + (hours >= 12 ? cal.dayPeriods[1] : cal.dayPeriods[0]));
+      ret = ret.replace('EEEE', cal.days.wide[dayOfWeek]); // Day of Week
     }
 
     // Day of Week
     if (cal) {
-      ret = ret.replace('EEEE', cal.days.wide[value.getDay()]); // Day of Week
+      ret = ret.replace('EEEE', cal.days.wide[dayOfWeek]); // Day of Week
     }
+    ret = ret.replace('nnnnn', 'de');
     ret = ret.replace('nnnn', 'ngày');
     ret = ret.replace('t1áng', 'tháng');
     ret = ret.replace('nnn', 'den');
 
+    // Timezone
+    if (ret.indexOf('zz') > -1) {
+      var timezoneDate = new Date();
+      var shortName = this.getTimeZone(timezoneDate, 'short');
+      var longName = this.getTimeZone(timezoneDate, 'long');
+
+      ret = ret.replace('zzzz', longName);
+      ret = ret.replace('zz', shortName);
+    }
+
     return ret.trim();
+  },
+
+
+  /**
+   * Get the timezone part of a date
+   * @param  {date} date The date object to use.
+   * @param  {string} timeZoneName Can be short or long.
+   * @returns {string} The time zone as a string.
+   */
+  getTimeZone: function getTimeZone(date, timeZoneName) {
+    var currentLocale = Locale.currentLocale.name || 'en-US';
+    var time = date.toLocaleTimeString(currentLocale);
+    var name = '';
+
+    if (Environment.browser.name === 'ie' && Environment.browser.version === '11') {
+      return date.toTimeString().match(new RegExp('[A-Z](?!.*[\(])', 'g')).join('');
+    }
+
+    if (timeZoneName === 'long') {
+      name = date.toLocaleTimeString(currentLocale, { timeZoneName: 'long' });
+      return name.replace(time + ' ', '');
+    }
+
+    name = date.toLocaleTimeString(currentLocale, { timeZoneName: 'short' });
+    return name.replace(time + ' ', '');
+  },
+
+
+  /**
+  * Takes a date object in the current locale and adjusts it for the given timezone.
+  * @param {date} date The utc date to show in the desired timezone.
+  * @param {string} timeZone The timezone name to show.
+  * @param {string} timeZoneName How to display the time zone name. Defaults to none. But can be short or long.
+  * @returns {date} the utc date
+  */
+  dateToTimeZone: function dateToTimeZone(date, timeZone, timeZoneName) {
+    if (Environment.browser.name === 'ie' && Environment.browser.version === '11') {
+      return date.toLocaleString(Locale.currentLocale.name) + ' ' + date.toTimeString().match(new RegExp('[A-Z](?!.*[\(])', 'g')).join('');
+    }
+
+    return date.toLocaleString(Locale.currentLocale.name, { timeZone: timeZone, timeZoneName: timeZoneName });
   },
 
   /**
@@ -813,6 +941,20 @@ const Locale = {  // eslint-disable-line
     });
 
     return ret;
+  },
+
+  /**
+   * Use the current locale data or the one passed in.
+   * @private
+   * @param  {object} options The options to parse.
+   * @returns {object} The locale data.
+   */
+  useLocale: function useLocale(options) {
+    var localeData = this.currentLocale.data;
+    if (options && options.locale && this.cultures[options.locale]) {
+      localeData = this.cultures[options.locale];
+    }
+    return localeData;
   },
 
   /**
