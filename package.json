@@ -1,6 +1,6 @@
 {
-  "name": "ids-enterprise",
-  "slug": "ids-enterprise",
+  "name": "ab-ids-enterprise",
+  "slug": "ab-ids-enterprise",
   "version": "4.18.1",
   "description": "Infor Design System (IDS) Enterprise Components for the web",
   "repository": {
