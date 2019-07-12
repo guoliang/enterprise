@@ -378,7 +378,7 @@ Tooltip.prototype = {
       }
 
       // Could be a translation definition
-      content = Locale.translate(content, true) || content;
+      content = Locale.translate(content, { showAsUndefined: true }) || content;
 
       // Could be an ID attribute.
       // If it matches an element already on the page, grab that element's content
@@ -451,7 +451,7 @@ Tooltip.prototype = {
       titleArea.style.display = 'none';
     }
 
-    if (!contentArea.previousElementSibling.classList.contains('arrow')) {
+    if (contentArea && !contentArea.previousElementSibling.classList.contains('arrow')) {
       contentArea.insertAdjacentHTML('beforebegin', '<div class="arrow"></div>');
     }
 

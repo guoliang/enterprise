@@ -15,7 +15,7 @@
   <meta name="version" content="{{version}}"/>
   <meta name="commit" content="{{commit}}"/>
 
-  <script src="{{basepath}}js/jquery-3.4.0.js"></script>
+  <script src="{{basepath}}js/jquery-3.4.1.js"></script>
   <script src="{{basepath}}js/d3.v4.js"></script>
   <script src="{{basepath}}js/promise-polyfill.js"></script>
 
@@ -38,10 +38,10 @@
   <script src="../../js/cultures/{{locale}}.js"></script>-->
 
   <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,600" rel="stylesheet"/>
-
+  <link rel="stylesheet" id="sohoxi-stylesheet" href="{{basepath}}css/theme-{{theme.name}}-{{theme.variant}}.css" type="text/css"/>
   <script>
     var colors;
-    var theme;
+    var theme = 'theme-{{theme.name}}-{{theme.variant}}';
     var blockUI = '{{layout}}'.indexOf('embedded') > -1 ? false : true;
 
     {{#colors}}
@@ -57,21 +57,9 @@
 
     {{/colors}}
 
-    {{#theme}}
-    theme = '{{theme}}';
-    {{/theme}}
-
     // If Initialize isnt called need to defer this
     $('html').personalize({colors: colors, theme: theme, blockUI: blockUI});
   </script>
 
-  <link rel="stylesheet" id="sohoxi-stylesheet" href="{{basepath}}css/{{theme}}-theme.css" type="text/css"/>
-
-  <!-- Cache Bust Test
-  <link rel="stylesheet" id="sohoxi-stylesheet" href="{{basepath}}css/{{theme}}-theme.css?v=MTIuMC4yMy4xMA" type="text/css"/>
-  -->
-
-  <!-- Style Sheets -->
   <link rel="stylesheet" href="{{basepath}}css/demo.css" type="text/css"/>
-
 </head>

@@ -95,7 +95,8 @@ const PAGER_DEFAULTS = {
   firstPageTooltip: 'FirstPage',
   previousPageTooltip: 'PreviousPage',
   nextPageTooltip: 'NextPage',
-  lastPageTooltip: 'LastPage'
+  lastPageTooltip: 'LastPage',
+  attachPageSizeMenuToBody: false
 };
 
 function Pager(element, settings) {
@@ -813,7 +814,6 @@ Pager.prototype = {
     }
 
     function renderButton(visibleContent = '', audibleContent = '', tooltipContent, targetPageNum, classAttr = '', selected = false, disabled = false, hidden = false) {
-      let isAriaSelected = '';
       let isAriaDisabled = '';
       let isControlDisabled = '';
       let titleAttr = '';
@@ -827,7 +827,6 @@ Pager.prototype = {
       }
       if (selected) {
         classAttr += ' selected';
-        isAriaSelected = ' aria-selected="true"';
         isAriaDisabled = ' aria-disabled="true"';
       }
       if (disabled) {
@@ -838,7 +837,7 @@ Pager.prototype = {
         titleAttr = ` title="${tooltipContent}"`;
       }
 
-      const html = `<li class="${classAttr}"${isAriaSelected}>
+      const html = `<li class="${classAttr}">
         <a${titleAttr}${pageAttr} href="#"${isAriaDisabled}${isControlDisabled}>
           <span class="audible">${audibleContent} </span>${visibleContent}
         </a>
@@ -1023,7 +1022,8 @@ Pager.prototype = {
           parent: pageSizeButton,
           parentXAlignment: (Locale.isRTL() ? 'left' : 'right'),
           strategies: ['flip']
-        }
+        },
+        attachToBody: this.settings.attachPageSizeMenuToBody
       };
 
       pageSizeButton.popupmenu(popupOpts);

@@ -114,7 +114,7 @@ Dropdown.prototype = {
   get overflowed() {
     if (!this.isMobile() || (this.isMobile() && !this.isOpen())) {
       const span = this.pseudoElem.find('span').css('max-width', '');
-      if (span.width() > this.pseudoElem.width()) {
+      if (Math.round(span.width()) > Math.round(this.pseudoElem.width())) {
         span.css('max-width', '100%');
         return true;
       }
@@ -864,7 +864,7 @@ Dropdown.prototype = {
     }
 
     if (this.settings.empty && opts.length === 0) {
-      this.pseudoElem.find('span').html(`<span class="audible">${this.label.text()} </span>`);
+      DOM.html(this.pseudoElem.find('span'), `<span class="audible">${this.label.text()} </span>`, '<div><p><span><ul><li><a><abbr><b><i><kbd><small><strong><sub><svg><use><br>');
       return;
     }
 
@@ -874,7 +874,7 @@ Dropdown.prototype = {
       text = text.substr(0, maxlength);
     }
     text = text.trim();
-    this.pseudoElem.find('span').html(`<span class="audible">${this.label.text()} </span>${text}`);
+    this.pseudoElem.find('span')[0].innerHTML = `<span class="audible">${this.label.text()} </span>${text}`;
 
     // If there is a placeholder set the selected text
     if (this.element.attr('placeholder')) {
@@ -2485,7 +2485,7 @@ Dropdown.prototype = {
 
     // If multiselect, reset the menu to the unfiltered mode
     if (this.settings.multiple) {
-      if (this.list.hasClass('search-mode')) {
+      if (this.list && this.list.hasClass('search-mode')) {
         this.resetList();
       }
       this.activate(true);
@@ -2654,7 +2654,14 @@ Dropdown.prototype = {
         }
 
         const selectedValues = (self.selectedValues && self.selectedValues.indexOf(val) > -1);
-        if (option.value === val || selectedValues) {
+        if (self.settings.multiple) {
+          val.forEach((value) => {
+            if (value === option.value) {
+              option.selected = true;
+              selected = ' selected';
+            }
+          });
+        } else if (option.value === val || selectedValues) {
           option.selected = true;
           selected = ' selected';
         }

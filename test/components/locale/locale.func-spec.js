@@ -17,6 +17,7 @@ require('../../../src/components/locale/cultures/en-ZA.js');
 require('../../../src/components/locale/cultures/es-AR.js');
 require('../../../src/components/locale/cultures/es-ES.js');
 require('../../../src/components/locale/cultures/es-MX.js');
+require('../../../src/components/locale/cultures/es-419.js');
 require('../../../src/components/locale/cultures/es-US.js');
 require('../../../src/components/locale/cultures/et-EE.js');
 require('../../../src/components/locale/cultures/fi-FI.js');
@@ -102,7 +103,7 @@ describe('Locale API', () => {
 
     let html = window.document.getElementsByTagName('html')[0];
 
-    expect(html.getAttribute('lang')).toEqual('de');
+    expect(html.getAttribute('lang')).toEqual('de-DE');
 
     Locale.set('ar-SA');
 
@@ -110,9 +111,37 @@ describe('Locale API', () => {
 
     html = window.document.getElementsByTagName('html')[0];
 
-    expect(html.getAttribute('lang')).toEqual('ar');
+    expect(html.getAttribute('lang')).toEqual('ar-SA');
     expect(html.getAttribute('dir')).toEqual('rtl');
     Locale.set('en-US');
+  });
+
+  it('Should change font for some locales', () => {
+    Locale.set('ar-EG');
+    const body = window.getComputedStyle(document.body, null);
+
+    expect(body.getPropertyValue('font-family')).toEqual('DejaVu, Tahoma, helvetica, arial');
+    Locale.set('ar-SA');
+
+    expect(body.getPropertyValue('font-family')).toEqual('DejaVu, Tahoma, helvetica, arial');
+    Locale.set('ja-JP');
+
+    expect(body.getPropertyValue('font-family')).toEqual('"MS PGothic", "ＭＳ Ｐゴシック", helvetica, arial');
+    Locale.set('ko-KR');
+
+    expect(body.getPropertyValue('font-family')).toEqual('"Malgun Gothic", AppleGothic, helvetica, arial');
+    Locale.set('zh-CN');
+
+    expect(body.getPropertyValue('font-family')).toEqual('华文细黑, 宋体, 微软雅黑, "Microsoft YaHei New", helvetica, arial');
+    Locale.set('zh-tw');
+
+    expect(body.getPropertyValue('font-family')).toEqual('华文细黑, 宋体, 微软雅黑, "Microsoft YaHei New", helvetica, arial');
+    Locale.set('zh-Hans');
+
+    expect(body.getPropertyValue('font-family')).toEqual('华文细黑, 宋体, 微软雅黑, "Microsoft YaHei New", helvetica, arial');
+    Locale.set('zh-Hant');
+
+    expect(body.getPropertyValue('font-family')).toEqual('华文细黑, 宋体, 微软雅黑, "Microsoft YaHei New", helvetica, arial');
   });
 
   it('Should map in-ID to id-ID', () => {
@@ -138,6 +167,25 @@ describe('Locale API', () => {
     // Note date is year, month, day
     expect(Locale.formatDate(new Date(2000, 12, 1), { pattern: Locale.calendar().dateFormat.month })).toEqual('01 محرم');
     expect(Locale.formatDate(new Date(2017, 10, 8), { pattern: Locale.calendar().dateFormat.month })).toEqual('08 ذو القعدة');
+    Locale.set('en-US');
+  });
+
+  it('Should format hebrew dates', () => {
+    Locale.set('he-IL');
+
+    expect(Locale.formatDate(new Date(2019, 12, 1), { date: 'short' })).toEqual('1.1.2020');
+    expect(Locale.formatDate(new Date(2019, 10, 8), { date: 'medium' })).toEqual('8 בנוב׳ 2019');
+    expect(Locale.formatDate(new Date(2019, 10, 8), { date: 'long' })).toEqual('8 בנובמבר 2019');
+    Locale.set('en-US');
+  });
+
+  it('Should format zh-Hans dates', () => {
+    Locale.set('zh-Hans');
+
+    expect(Locale.formatDate(new Date(2019, 12, 1), { date: 'short' })).toEqual('2020/1/1');
+    expect(Locale.formatDate(new Date(2019, 10, 8), { date: 'medium' })).toEqual('2019年11月8日');
+    expect(Locale.formatDate(new Date(2019, 10, 8), { date: 'long' })).toEqual('2019年11月8日');
+    expect(Locale.formatDate(new Date(2019, 10, 8), { date: 'datetime' })).toEqual('2019/11/8 上午12:00');
     Locale.set('en-US');
   });
 
@@ -242,7 +290,7 @@ describe('Locale API', () => {
 
     Locale.set('fi-FI');
 
-    expect(Locale.formatDate(date, opts)).toEqual('1.2.2017 17:27');
+    expect(Locale.formatDate(date, opts)).toEqual('1.2.2017 17.27');
 
     Locale.set('cs-CZ');
 
@@ -258,7 +306,7 @@ describe('Locale API', () => {
 
     Locale.set('ru-RU');
 
-    expect(Locale.formatDate(date, opts)).toEqual('2/1/2017 17:27');
+    expect(Locale.formatDate(date, opts)).toEqual('01.02.2017 17:27');
   });
 
   // monthYear and yearMonth
@@ -275,7 +323,7 @@ describe('Locale API', () => {
 
     Locale.set('sv-SE');
 
-    expect(Locale.formatDate(new Date(2000, 11, 1, 13, 40), { date: 'month' })).toEqual('den 1 december');
+    expect(Locale.formatDate(new Date(2000, 11, 1, 13, 40), { date: 'month' })).toEqual('1 december');
     expect(Locale.formatDate(new Date(2000, 11, 1, 13, 5), { date: 'year' })).toEqual('december 2000');
   });
 
@@ -342,7 +390,7 @@ describe('Locale API', () => {
 
     Locale.set('vi-VN');
 
-    expect(Locale.formatDate(new Date(2015, 0, 1, 13, 40), { date: 'long' })).toEqual('ngày 01 tháng 01 năm 2015');
+    expect(Locale.formatDate(new Date(2015, 0, 1, 13, 40), { date: 'long' })).toEqual('1 Tháng Giêng, 2015');
   });
 
   it('Should format long with day of week', () => {
@@ -494,7 +542,7 @@ describe('Locale API', () => {
     Locale.set('nb-NO');
 
     expect(Locale.translate('Loading')).toEqual('Laster');
-    expect(Locale.calendar().timeFormat).toEqual('HH.mm');
+    expect(Locale.calendar().timeFormat).toEqual('HH:mm');
     Locale.set('en-US');
   });
 
@@ -907,8 +955,8 @@ describe('Locale API', () => {
     expect(['22-03-2018 20:11 EST', '22-03-2018 20:11 EDT']).toContain(Locale.formatDate(new Date(2018, 2, 22, 20, 11, 12), { pattern: 'dd-MM-yyyy HH:mm zz' }));
     Locale.set('nl-NL');
 
-    expect(['22/3/2018 20:11 GMT-5', '22/3/2018 20:11 GMT-4']).toContain(Locale.formatDate(new Date(2018, 2, 22, 20, 11, 12), { date: 'timezone' }));
-    expect(['22-03-2018 20:11 GMT-5', '22-03-2018 20:11 GMT-4']).toContain(Locale.formatDate(new Date(2018, 2, 22, 20, 11, 12), { pattern: 'dd-MM-yyyy HH:mm zz' }));
+    expect(['22-03-2018 20:11 GMT-5', '22-03-2018 20:11 GMT-4', '22-03-2018 20:11 EDT']).toContain(Locale.formatDate(new Date(2018, 2, 22, 20, 11, 12), { date: 'timezone' }));
+    expect(['22-03-2018 20:11 GMT-5', '22-03-2018 20:11 GMT-4', '22-03-2018 20:11 EDT']).toContain(Locale.formatDate(new Date(2018, 2, 22, 20, 11, 12), { pattern: 'dd-MM-yyyy HH:mm zz' }));
   });
 
   it('Should format dates with long timezones', () => {
@@ -918,7 +966,7 @@ describe('Locale API', () => {
     expect(['22-03-2000 20:11 Eastern Standard Time', '22-03-2000 20:11 Eastern Daylight Time']).toContain(Locale.formatDate(new Date(2000, 2, 22, 20, 11, 12), { pattern: 'dd-MM-yyyy HH:mm zzzz' }));
     Locale.set('nl-NL');
 
-    expect(['22/3/2018 20:11 Eastern-standaardtijd', '22/3/2018 20:11 Eastern-zomertijd']).toContain(Locale.formatDate(new Date(2018, 2, 22, 20, 11, 12), { date: 'timezoneLong' }));
+    expect(['22-03-2018 20:11 Eastern-standaardtijd', '22-03-2018 20:11 Eastern-zomertijd']).toContain(Locale.formatDate(new Date(2018, 2, 22, 20, 11, 12), { date: 'timezoneLong' }));
     expect(['22-03-2000 20:11 Eastern-standaardtijd', '22-03-2000 20:11 Eastern-zomertijd']).toContain(Locale.formatDate(new Date(2000, 2, 22, 20, 11, 12), { pattern: 'dd-MM-yyyy HH:mm zzzz' }));
   });
 
@@ -929,7 +977,7 @@ describe('Locale API', () => {
     expect(Locale.parseDate('22-03-2018 20:11 EST', { pattern: 'dd-MM-yyyy HH:mm zz' }).getTime()).toEqual(new Date(2018, 2, 22, 20, 11).getTime());
     Locale.set('nl-NL');
 
-    expect(Locale.parseDate('22/3/2018 20:11 GMT-5', { date: 'timezone' }).getTime()).toEqual(new Date(2018, 2, 22, 20, 11).getTime());
+    expect(Locale.parseDate('22-03-2018 20:11 GMT-5', { date: 'timezone' }).getTime()).toEqual(new Date(2018, 2, 22, 20, 11).getTime());
     expect(Locale.parseDate('22-03-2018 20:11 GMT-5', { pattern: 'dd-MM-yyyy HH:mm zz' }).getTime()).toEqual(new Date(2018, 2, 22, 20, 11).getTime());
   });
 
@@ -940,7 +988,7 @@ describe('Locale API', () => {
     expect(Locale.parseDate('22-03-2000 20:11 Eastern Standard Time', { pattern: 'dd-MM-yyyy HH:mm zzzz' }).getTime()).toEqual(new Date(2000, 2, 22, 20, 11).getTime());
     Locale.set('nl-NL');
 
-    expect(Locale.parseDate('22/3/2018 20:11 Eastern-standaardtijd', { date: 'timezoneLong' }).getTime()).toEqual(new Date(2018, 2, 22, 20, 11).getTime());
+    expect(Locale.parseDate('22-03-2018 20:11 Eastern-standaardtijd', { date: 'timezoneLong' }).getTime()).toEqual(new Date(2018, 2, 22, 20, 11).getTime());
     expect(Locale.parseDate('22-03-2000 20:11 Eastern-standaardtijd', { pattern: 'dd-MM-yyyy HH:mm zzzz' }).getTime()).toEqual(new Date(2000, 2, 22, 20, 11).getTime());
   });
 
@@ -967,7 +1015,7 @@ describe('Locale API', () => {
 
     expect(Locale.dateToTimeZone(new Date(2018, 2, 26), 'Australia/Brisbane', 'short')).toEqual('26-3-2018 14:00:00 GMT+10');
     expect(Locale.dateToTimeZone(new Date(2018, 2, 26), 'Asia/Shanghai', 'short')).toEqual('26-3-2018 12:00:00 GMT+8');
-    expect(Locale.dateToTimeZone(new Date(2018, 2, 26), 'America/New_York', 'short')).toEqual('26-3-2018 00:00:00 GMT-4');
+    expect(['26-3-2018 0:00:00 EDT', '26-3-2018 00:00:00 GMT-4']).toContain(Locale.dateToTimeZone(Locale.dateToTimeZone(new Date(2018, 2, 26), 'America/New_York', 'short')));
   });
 
   it('Should be able to display dates into another timezone including long timezone name', () => {
@@ -980,10 +1028,10 @@ describe('Locale API', () => {
 
     expect(Locale.dateToTimeZone(new Date(2018, 2, 26), 'Australia/Brisbane', 'long')).toEqual('26-3-2018 14:00:00 Oost-Australische standaardtijd');
     expect(Locale.dateToTimeZone(new Date(2018, 2, 26), 'Asia/Shanghai', 'long')).toEqual('26-3-2018 12:00:00 Chinese standaardtijd');
-    expect(Locale.dateToTimeZone(new Date(2018, 2, 26), 'America/New_York', 'long')).toEqual('26-3-2018 00:00:00 Eastern-zomertijd');
+    expect(['26-3-2018 00:00:00 Eastern-zomertijd', '26-3-2018 0:00:00 Eastern-zomertijd']).toContain(Locale.dateToTimeZone(new Date(2018, 2, 26), 'America/New_York', 'long'));
   });
 
-  it('Should be possible to set the langauge to something other than the current locale', (done) => {
+  it('Should be possible to set the language to something other than the current locale', (done) => {
     Locale.set('en-US');
 
     expect(Locale.translate('Actions')).toEqual('Actions');
@@ -1004,7 +1052,7 @@ describe('Locale API', () => {
     });
   });
 
-  it('Should be possible to extend the langauge strings for a locale', (done) => {
+  it('Should be possible to extend the language strings for a locale', (done) => {
     Locale.set('it-lT').done(() => {
       const myStrings = {
         Thanks: { id: 'Thanks', value: 'Grazie', comment: '' },
@@ -1019,7 +1067,7 @@ describe('Locale API', () => {
     });
   });
 
-  it('Should be possible to extend the langauge strings for a language', (done) => {
+  it('Should be possible to extend the language strings for a language', (done) => {
     Locale.set('fr-FR').done(() => {
       Locale.setLanguage('it').done(() => {
         const myStrings = {
@@ -1299,7 +1347,7 @@ describe('Locale API', () => {
     });
     Locale.getLocale('hi-IN').done(() => {
       expect(Locale.formatDate(new Date(2019, 5, 8), { date: 'short', locale: 'hi-IN' })).toEqual('08-06-2019');
-      expect(Locale.formatDate(new Date(2019, 5, 8), { date: 'medium', locale: 'hi-IN' })).toEqual('08-06-2019');
+      expect(Locale.formatDate(new Date(2019, 5, 8), { date: 'medium', locale: 'hi-IN' })).toEqual('8 जू 2019');
       expect(Locale.formatDate(new Date(2019, 5, 8), { date: 'long', locale: 'hi-IN' })).toEqual('8 जून 2019');
       done();
     });
@@ -1324,6 +1372,13 @@ describe('Locale API', () => {
     expect(Locale.translate('XYZ', false)).toEqual('[XYZ]');
     expect(Locale.translate('XYZ', { showAsUndefined: true })).toEqual(undefined);
     expect(Locale.translate('XYZ', { showAsUndefined: false })).toEqual('[XYZ]');
+    // Show brackets setting
+    expect(Locale.translate('XYZ', { showAsUndefined: true, showBrackets: true })).toEqual(undefined);
+    expect(Locale.translate('XYZ', { showAsUndefined: false, showBrackets: true })).toEqual('[XYZ]');
+    expect(Locale.translate('XYZ', { showAsUndefined: true, showBrackets: false })).toEqual(undefined);
+    expect(Locale.translate('XYZ', { showAsUndefined: false, showBrackets: false })).toEqual('XYZ');
+    expect(Locale.translate('XYZ', { showBrackets: true })).toEqual('[XYZ]');
+    expect(Locale.translate('XYZ', { showBrackets: false })).toEqual('XYZ');
   });
 
   it('Should be able get translations in a non current locale', (done) => {
@@ -1337,5 +1392,75 @@ describe('Locale API', () => {
       expect(Locale.translate('Loading', { language: 'de' })).toEqual('Laden...');
       done();
     });
+  });
+
+  it('Should format times correctly', () => {
+    Locale.set('af-ZA');
+
+    expect(Locale.calendar().timeFormat).toEqual('HH:mm');
+    expect(Locale.calendar().dateFormat.timestamp).toEqual('HH:mm:ss');
+    expect(Locale.calendar().dateFormat.datetime).toEqual('yyyy-MM-dd HH:mm');
+
+    Locale.set('bg-BG');
+
+    expect(Locale.calendar().timeFormat).toEqual('H:mm');
+    expect(Locale.calendar().dateFormat.timestamp).toEqual('H:mm:ss');
+    expect(Locale.calendar().dateFormat.datetime).toEqual('d.MM.yyyy H:mm');
+
+    Locale.set('cs-CZ');
+
+    expect(Locale.calendar().timeFormat).toEqual('H:mm');
+    expect(Locale.calendar().dateFormat.timestamp).toEqual('H:mm:ss');
+    expect(Locale.calendar().dateFormat.datetime).toEqual('dd.MM.yyyy H:mm');
+
+    Locale.set('da-DK');
+
+    expect(Locale.calendar().timeFormat).toEqual('HH.mm');
+    expect(Locale.calendar().dateFormat.timestamp).toEqual('HH.mm.ss');
+    expect(Locale.calendar().dateFormat.datetime).toEqual('dd-MM-yyyy HH.mm');
+
+    Locale.set('de-DE');
+
+    expect(Locale.calendar().timeFormat).toEqual('HH:mm');
+    expect(Locale.calendar().dateFormat.timestamp).toEqual('HH:mm:ss');
+    expect(Locale.calendar().dateFormat.datetime).toEqual('dd.MM.yyyy HH:mm');
+
+    Locale.set('el-GR');
+
+    expect(Locale.calendar().timeFormat).toEqual('h:mm a');
+    expect(Locale.calendar().dateFormat.timestamp).toEqual('h:mm:ss a');
+    expect(Locale.calendar().dateFormat.datetime).toEqual('d/M/yyyy h:mm a');
+
+    Locale.set('pl-PL');
+
+    expect(Locale.calendar().timeFormat).toEqual('HH:mm');
+    expect(Locale.calendar().dateFormat.timestamp).toEqual('HH:mm:ss');
+    expect(Locale.calendar().dateFormat.datetime).toEqual('dd.MM.yyyy HH:mm');
+
+    Locale.set('pt-BR');
+
+    expect(Locale.calendar().timeFormat).toEqual('HH:mm');
+    expect(Locale.calendar().dateFormat.timestamp).toEqual('HH:mm:ss');
+    expect(Locale.calendar().dateFormat.datetime).toEqual('dd/MM/yyyy HH:mm');
+
+    Locale.set('sl-SI');
+
+    expect(Locale.calendar().timeFormat).toEqual('HH:mm');
+    expect(Locale.calendar().dateFormat.timestamp).toEqual('HH:mm:ss');
+    expect(Locale.calendar().dateFormat.datetime).toEqual('d. MM. yyyy HH:mm');
+  });
+
+  it('Should Get the Parent Locale', () => {
+    Locale.set('es-MX');
+
+    expect(Locale.currentLocale.name).toEqual('es-MX');
+    expect(Locale.currentLanguage.name).toEqual('es');
+    expect(Locale.translate('Required')).toEqual('Obligatorio');
+
+    Locale.set('es-419');
+
+    expect(Locale.currentLocale.name).toEqual('es-419');
+    expect(Locale.currentLanguage.name).toEqual('es');
+    expect(Locale.translate('Required')).toEqual('Obligatorio');
   });
 });

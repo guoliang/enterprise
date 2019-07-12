@@ -70,6 +70,10 @@
   margin-bottom: 20px;
   position: relative;
 
+  &.less-margin {
+    margin-bottom: 5px;
+  }
+
   textarea + .btn-actions {
     margin-left: 4px;
     position: absolute;
@@ -448,7 +452,7 @@ label,
   -webkit-text-fill-color: $inverse-color;
 }
 
-// Mask Control Adjustment Classes
+// Mask component Adjustment Classes
 .is-number-mask {
   text-align: right;
 }
@@ -854,7 +858,7 @@ html[dir='rtl'] {
     right: 3px;
   }
 
-  // Mask Control Adjustment Classes
+  // Mask component Adjustment Classes
   .is-number-mask {
     text-align: left;
   }
