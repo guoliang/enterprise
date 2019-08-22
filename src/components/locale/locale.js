@@ -341,7 +341,7 @@ const Locale = {  // eslint-disable-line
    */
   getLocale(locale) {
     const self = this;
-    locale = this.correctLocale(locale);
+    // locale = this.correctLocale(locale);
     this.dff[locale] = $.Deferred();
 
     if (locale === '') {
