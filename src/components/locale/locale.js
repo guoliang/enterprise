@@ -339,9 +339,9 @@ const Locale = {  // eslint-disable-line
    * @param {string} locale The locale to fetch and set.
    * @returns {jquery.deferred} which is resolved once the locale culture is retrieved and set
    */
-  getLocale(locale) {
+  getLocale(locale, customLocaleFilename) {
     const self = this;
-    // locale = this.correctLocale(locale);
+    locale = this.correctLocale(locale);
     this.dff[locale] = $.Deferred();
 
     if (locale === '') {
@@ -355,7 +355,8 @@ const Locale = {  // eslint-disable-line
     }
 
     if (locale && !this.cultures[locale] && this.currentLocale.name !== locale) {
-      this.appendLocaleScript(locale, false);
+      const filename = !customLocaleFilename ? locale : customLocaleFilename;
+      this.appendLocaleScript(filename, false);
     }
 
     if (locale && self.currentLocale.data && self.currentLocale.dataName === locale) {
