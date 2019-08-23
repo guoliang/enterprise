@@ -271,12 +271,12 @@ const Locale = {  // eslint-disable-line
         this.setCurrentLocale(locale, this.cultures[locale]);
         this.dff[locale].resolve(locale);
       }
-      if (parentLocale) {
+      if (parentLocale && this.dff[parentLocale]) {
         this.setCurrentLocale(locale, this.cultures[locale]);
         this.setCurrentLocale(parentLocale, this.cultures[parentLocale]);
         this.dff[parentLocale].resolve(parentLocale);
       }
-      if (!(isCurrent && !parentLocale) && !parentLocale) {
+      if (!isCurrent && !parentLocale && this.dff[locale]) {
         this.dff[locale].resolve(locale);
       }
     };
@@ -313,21 +313,26 @@ const Locale = {  // eslint-disable-line
       this.appendLocaleScript('en-US', false);
     }
 
-    // Also load the default locale for that locale
     const lang = locale.split('-')[0];
-    let resolveToParent = false;
+    let hasParentLocale = false;
     const match = this.defaultLocales.filter(a => a.lang === lang);
     const parentLocale = match[0] || [{ default: 'en-US' }];
     if (parentLocale.default && parentLocale.default !== locale &&
       !this.cultures[parentLocale.default]) {
-      resolveToParent = true;
-      this.appendLocaleScript(parentLocale.default, false, locale);
+      hasParentLocale = true;
     }
 
-    if (locale && !this.cultures[locale] && this.currentLocale.name !== locale) {
+    if (!hasParentLocale && locale && !this.cultures[locale] &&
+      this.currentLocale.name !== locale) {
       this.setCurrentLocale(locale);
       // Fetch the local and cache it
-      this.appendLocaleScript(locale, !resolveToParent);
+      this.appendLocaleScript(locale, true);
+    }
+
+    // Also load the default locale for that locale
+    if (hasParentLocale) {
+      this.appendLocaleScript(parentLocale.default, false, locale);
+      this.appendLocaleScript(locale, false, parentLocale.default);
     }
 
     if (locale && self.currentLocale.data && self.currentLocale.dataName === locale) {
@@ -346,10 +351,10 @@ const Locale = {  // eslint-disable-line
   /**
    * Loads the locale without setting it.
    * @param {string} locale The locale to fetch and set.
-   * @param {string} customLocaleFilename Optional parameter to tell locale's filename.
+   * @param {string} filename Optional Locale's filename if different from default.
    * @returns {jquery.deferred} which is resolved once the locale culture is retrieved and set
    */
-  getLocale(locale, customLocaleFilename) {
+  getLocale(locale, filename) {
     const self = this;
     locale = this.correctLocale(locale);
     this.dff[locale] = $.Deferred();
@@ -365,7 +370,6 @@ const Locale = {  // eslint-disable-line
     }
 
     if (locale && !this.cultures[locale] && this.currentLocale.name !== locale) {
-      const filename = !customLocaleFilename ? locale : customLocaleFilename;
       this.appendLocaleScript(locale, false, false, filename);
     }
 
@@ -734,7 +738,7 @@ const Locale = {  // eslint-disable-line
 
     let dateFormat = options;
     let locale = this.currentLocale.name;
-    const thisLocaleCalendar = this.calendar();
+    let thisLocaleCalendar = this.calendar();
     if (typeof options === 'object') {
       locale = options.locale || locale;
       dateFormat = options.dateFormat || this.calendar(locale).dateFormat[dateFormat.date];
@@ -742,6 +746,10 @@ const Locale = {  // eslint-disable-line
 
     if (typeof options === 'object' && options.pattern) {
       dateFormat = options.dateFormat || options.pattern;
+    }
+
+    if (typeof options === 'object' && options.calendarName && options.locale) {
+      thisLocaleCalendar = this.calendar(options.locale, options.calendarName);
     }
 
     if (!dateFormat) {
@@ -1749,16 +1757,6 @@ const Locale = {  // eslint-disable-line
       }
     });
   }
-
 };
-
-// Has to delay in order to check if no culture in head since scripts load async
-$(() => {
-  setTimeout(() => {
-    if (Locale && !Locale.cultureInHead() && !Locale.currentLocale.name) {
-      Locale.set('en-US');
-    }
-  }, 50);
-});
 
 export { Locale };
