@@ -254,11 +254,17 @@ const Locale = {  // eslint-disable-line
    * @param {string} locale The locale name to append.
    * @param {boolean} isCurrent If we should set this as the current locale
    * @param {string} parentLocale If we should resolve the promise base on locale
+   * @param {string} filename Optional parameter to load locale with different filename
    * @returns {void}
    */
-  appendLocaleScript(locale, isCurrent, parentLocale) {
+  appendLocaleScript(locale, isCurrent, parentLocale, filename) {
     const script = document.createElement('script');
-    script.src = `${this.getCulturesPath() + locale}.js`;
+
+    if (!filename) {
+      script.src = `${this.getCulturesPath() + locale}.js`;
+    } else {
+      script.src = `${this.getCulturesPath() + filename}.js`;
+    }
 
     script.onload = () => {
       if (isCurrent && !parentLocale) {
@@ -269,6 +275,9 @@ const Locale = {  // eslint-disable-line
         this.setCurrentLocale(locale, this.cultures[locale]);
         this.setCurrentLocale(parentLocale, this.cultures[parentLocale]);
         this.dff[parentLocale].resolve(parentLocale);
+      }
+      if (!(isCurrent && !parentLocale) && !parentLocale) {
+        this.dff[locale].resolve(locale);
       }
     };
 
@@ -337,6 +346,7 @@ const Locale = {  // eslint-disable-line
   /**
    * Loads the locale without setting it.
    * @param {string} locale The locale to fetch and set.
+   * @param {string} customLocaleFilename Optional parameter to tell locale's filename.
    * @returns {jquery.deferred} which is resolved once the locale culture is retrieved and set
    */
   getLocale(locale, customLocaleFilename) {
@@ -356,7 +366,7 @@ const Locale = {  // eslint-disable-line
 
     if (locale && !this.cultures[locale] && this.currentLocale.name !== locale) {
       const filename = !customLocaleFilename ? locale : customLocaleFilename;
-      this.appendLocaleScript(filename, false);
+      this.appendLocaleScript(locale, false, false, filename);
     }
 
     if (locale && self.currentLocale.data && self.currentLocale.dataName === locale) {
