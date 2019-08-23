@@ -357,8 +357,18 @@ DatePicker.prototype = {
   setFormat() {
     const s = this.settings;
     let localeDateFormat = ((typeof Locale === 'object' && this.currentCalendar.dateFormat) ? this.currentCalendar.dateFormat : null);
-    const localeTimeFormat = ((typeof Locale === 'object' && this.currentCalendar.timeFormat) ? this.currentCalendar.timeFormat : null);
+    let localeTimeFormat = ((typeof Locale === 'object' && this.currentCalendar.timeFormat) ? this.currentCalendar.timeFormat : null);
 
+    if (typeof Locale === 'object' && this.settings.calendarName) {
+      localeDateFormat = Locale.calendar(
+        this.settings.locale,
+        this.settings.calendarName
+      ).dateFormat;
+      localeTimeFormat = Locale.calendar(
+        this.settings.locale,
+        this.settings.calendarName
+      ).timeFormat;
+    }
     if (typeof localeDateFormat === 'object' && localeDateFormat.short !== undefined) {
       localeDateFormat = localeDateFormat.short;
     }
@@ -784,9 +794,9 @@ DatePicker.prototype = {
         } else if (btn.hasClass('is-select-month')) {
           self.insertDate(self.isIslamic ? self.currentDateIslamic : self.currentDate);
           self.closeCalendar();
-        } else if (btn.hasClass('is-select-month-pane')) {
+        }
+        if (btn.hasClass('is-select-month-pane')) {
           self.calendarAPI.showMonth(month, year);
-          self.calendarAPI.monthYearPane.data('expandablearea').close();
         }
       }
 
@@ -822,6 +832,10 @@ DatePicker.prototype = {
       }
       self.element.focus();
       e.preventDefault();
+
+      if (btn.hasClass('is-select-month-pane')) {
+        self.calendarAPI.monthYearPane.data('expandablearea').close();
+      }
     });
     setTimeout(() => {
       self.calendarAPI.validatePrevNext();
@@ -1099,7 +1113,14 @@ DatePicker.prototype = {
       let row = cell.closest('tr');
 
       if (s.range.second) {
-        this.resetRange({ cell });
+        if (!s.range.second.date) {
+          delete s.range.second.date;
+          if ($.isEmptyObject(s.range.second)) {
+            delete s.range.second;
+          }
+        } else {
+          this.resetRange({ cell });
+        }
       }
 
       const time = {};
@@ -1345,14 +1366,16 @@ DatePicker.prototype = {
     if (typeof this.currentDate === 'string') {
       this.currentDate = Locale.parseDate(this.currentDate, {
         pattern: this.pattern,
-        locale: this.locale.name
+        locale: this.locale.name,
+        calendarName: this.settings.calendarName
       }, false);
     }
 
     if (this.currentDate === undefined) {
       this.currentDate = Locale.parseDate(gregorianValue, {
         pattern: this.pattern,
-        locale: this.locale.name
+        locale: this.locale.name,
+        calendarName: this.settings.calendarName
       }, false);
     }
 
@@ -1373,13 +1396,15 @@ DatePicker.prototype = {
     const isStrict = !(dateFormat === 'MMMM d' || dateFormat === 'yyyy');
     const parsedDate = Locale.parseDate(self.element.val().trim(), {
       pattern: dateFormat,
-      locale: this.locale.name
+      locale: this.locale.name,
+      calendarName: this.settings.calendarName
     }, isStrict);
 
     if (parsedDate !== undefined && self.element.val().trim() !== '' && !s.range.useRange) {
       self.setValue(Locale.parseDate(self.element.val().trim(), {
         pattern: self.pattern,
-        locale: this.locale.name
+        locale: this.locale.name,
+        calendarName: this.settings.calendarName
       }, false));
     }
 

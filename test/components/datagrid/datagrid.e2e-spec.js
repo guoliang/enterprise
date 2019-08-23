@@ -264,12 +264,12 @@ describe('Datagrid Expandable Row Tests', () => {
       expect(size.height).toEqual(0);
     });
     await button.click();
-    await browser.driver.sleep(config.sleep);
+    await browser.driver.sleep(config.sleepLonger);
     await detailRow.getSize().then((size) => {
       expect(size.height).toBeGreaterThan(150);
     });
     await button.click();
-    await browser.driver.sleep(config.sleep);
+    await browser.driver.sleep(config.sleepLonger);
     await detailRow.getSize().then((size) => {
       expect(size.height).toEqual(0);
     });
@@ -765,12 +765,14 @@ describe('Datagrid multiselect tests', () => {
   it('Should work with sort', async () => {
     await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(1) td:nth-child(2)')).click();
     await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(2) td:nth-child(2)')).click();
+    await browser.driver.sleep(config.sleep);
 
     expect(await element(by.css('.selection-count')).getText()).toEqual('2 Selected');
     expect(await element.all(by.css('.datagrid-row.is-selected')).count()).toEqual(2);
 
     await element(by.css('#datagrid .datagrid-header th:nth-child(2)')).click();
     await element(by.css('#datagrid .datagrid-header th:nth-child(2)')).click();
+    await browser.driver.sleep(config.sleep);
 
     await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(1) td:nth-child(2)')).click();
 
@@ -902,12 +904,14 @@ describe('Datagrid paging tests', () => {
       expect(await element(by.css('#datagrid .datagrid-header th:nth-child(2).is-sorted-desc')).isPresent()).toBeFalsy();
 
       await element(by.css('#datagrid .datagrid-header th:nth-child(2)')).click();
+      await browser.driver.sleep(config.sleep);
       await element(by.css('#datagrid .datagrid-header th:nth-child(2)')).click();
       await browser.driver.sleep(config.sleep);
 
       expect(await element(by.css('#datagrid .datagrid-header th:nth-child(2).is-sorted-desc')).isPresent()).toBeTruthy();
 
       await element(by.css('.pager-next a')).click();
+      await browser.driver.sleep(config.sleep);
       await element(by.css('.pager-prev a')).click();
       await browser.driver.sleep(config.sleep);
 
@@ -921,9 +925,11 @@ describe('Datagrid paging tests', () => {
       expect(await element(by.css('tbody tr:nth-child(10) td:nth-child(2) span')).getText()).toEqual('9');
 
       await element(by.css('.pager-count input')).clear();
+      await browser.driver.sleep(config.sleepShort);
       await element(by.css('.pager-count input')).sendKeys('101');
+      await browser.driver.sleep(config.sleepShort);
       await element(by.css('.pager-count input')).sendKeys(protractor.Key.ENTER);
-      await browser.driver.sleep(config.sleep);
+      await browser.driver.sleep(config.sleepShort);
 
       expect(await element(by.css('tbody tr:nth-child(1) td:nth-child(2) span')).getText()).toEqual('0');
       expect(await element(by.css('tbody tr:nth-child(10) td:nth-child(2) span')).getText()).toEqual('9');
@@ -1240,6 +1246,33 @@ describe('Datagrid editor dropdown source tests', () => {
   });
 });
 
+describe('Datagrid onKeyDown Tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/datagrid/test-editable-onkeydown?layout=nofrills');
+
+    const datagridEl = await element(by.css('#datagrid tr:nth-child(1)'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(datagridEl), config.waitsFor);
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('Should show toast on keydown', async () => {
+    await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(1) td:nth-child(1)')).click();
+
+    const editCellSelector = '.has-editor.is-editing input';
+    const inputEl = await element(by.css(editCellSelector));
+    await browser.driver.wait(protractor.ExpectedConditions.presenceOf(inputEl), config.waitsFor);
+    await element(by.css(editCellSelector)).sendKeys('j');
+    await element(by.css(editCellSelector)).sendKeys(protractor.Key.TAB);
+
+    expect(await element.all(by.css('#toast-container .toast-message')).first().getText()).toEqual('You hit j. Event has been vetoed, so nothing will happen.');
+    expect(await element.all(by.css('#toast-container .toast-message')).last().getText()).toEqual('You hit Tab. Event has been vetoed, so nothing will happen.');
+  });
+});
+
 describe('Datagrid Header Alignment With Ellipsis', () => {
   beforeEach(async () => {
     await utils.setPage('/components/datagrid/test-ellipsis-header-align?layout=nofrills');
@@ -1282,6 +1315,29 @@ describe('Datagrid Header Alignment With Ellipsis and Sorting', () => {
       await browser.driver.sleep(config.sleep);
 
       expect(await browser.protractorImageComparison.checkElement(containerEl, 'datagrid-header-align-ellipsis-sort')).toEqual(0);
+    });
+  }
+});
+
+describe('Datagrid Empty Card Scrolling', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/datagrid/test-empty-card?layout=nofrills');
+
+    const datagridEl = await element(by.css('#datagrid .datagrid-body'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(datagridEl), config.waitsFor);
+  });
+
+  it('Should show empty indicator initially', async () => {
+    expect(await element.all(by.css('.empty-message')).count()).toEqual(1);
+  });
+
+  if (utils.isChrome() && utils.isCI()) {
+    it('Should not visual regress', async () => {
+      const containerEl = await element(by.className('container'));
+      await browser.driver.sleep(config.sleep);
+
+      expect(await browser.protractorImageComparison.checkElement(containerEl, 'datagrid-empty-card')).toEqual(0);
     });
   }
 });
@@ -1329,6 +1385,56 @@ describe('Datagrid Header Overlapping Sorting Indicator', () => {
   }
 });
 
+describe('Datagrid Dirty and New Row Indicator', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/datagrid/test-overlaps-row-cell-indicators?layout=nofrills');
+
+    const datagridEl = await element(by.css('#datagrid tr:nth-child(1)'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(datagridEl), config.waitsFor);
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('Should show a new line indicator', async () => {
+    await element(by.id('add-row-top')).click();
+
+    expect(await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(1) td:nth-child(1).rowstatus-cell')).isPresent()).toBe(true);
+    await utils.checkForErrors();
+  });
+
+  it('should show a dirty indicator on existing rows', async () => {
+    await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(1) td:nth-child(1)')).click();
+
+    const editCellSelector = '.has-editor.is-editing input';
+    const inputEl = await element(by.css(editCellSelector));
+    await browser.driver.wait(protractor.ExpectedConditions.presenceOf(inputEl), config.waitsFor);
+    await element(by.css(editCellSelector)).sendKeys('121');
+
+    expect(await element(by.css(editCellSelector)).getAttribute('value')).toEqual('121');
+    await element(by.css(editCellSelector)).sendKeys(protractor.Key.ENTER);
+
+    expect(await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(1) td:nth-child(1).is-dirty-cell')).isPresent()).toBe(true);
+  });
+
+  it('should not show a dirty indicator on new rows', async () => {
+    await element(by.id('add-row-top')).click();
+    await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(1) td:nth-child(1)')).click();
+
+    const editCellSelector = '.has-editor.is-editing input';
+    const inputEl = await element(by.css(editCellSelector));
+    await browser.driver.wait(protractor.ExpectedConditions.presenceOf(inputEl), config.waitsFor);
+    await element(by.css(editCellSelector)).sendKeys('121');
+
+    expect(await element(by.css(editCellSelector)).getAttribute('value')).toEqual('121');
+    await element(by.css(editCellSelector)).sendKeys(protractor.Key.ENTER);
+
+    expect(await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(1) td:nth-child(1).is-dirty-cell')).isPresent()).toBe(false);
+  });
+});
+
 describe('Datagrid contextmenu tests', () => {
   beforeEach(async () => {
     await utils.setPage('/components/datagrid/test-contextmenu');
@@ -1342,7 +1448,7 @@ describe('Datagrid contextmenu tests', () => {
     await utils.checkForErrors();
   });
 
-  if (!utils.isBS()) {
+  if (!utils.isCI() && !utils.isBS()) {
     it('Should show context menu', async () => {
       const td = await element(by.css('#readonly-datagrid tr:first-child td:first-child')).getLocation();
       await browser.actions()
@@ -1393,6 +1499,36 @@ describe('Datagrid Custom Tooltip tests', () => {
 
     expect(await tooltip.getAttribute('class')).not.toContain('is-hidden');
     expect(await tooltip.getText()).toEqual('Row: 0 Cell: 3 Value: Error');
+  });
+});
+
+describe('Datagrid filter load data and update columns tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/datagrid/test-filter-load-data-update-columns?layout=nofrills');
+
+    const datagridEl = await element(by.css('#datagrid tbody tr:nth-child(1)'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(datagridEl), config.waitsFor);
+  });
+
+  it('Should select and filter', async () => {
+    expect(await element.all(by.css('#datagrid tbody tr')).count()).toEqual(7);
+    const multiselectEl = await element(by.css('.datagrid-filter-wrapper div.dropdown'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(multiselectEl), config.waitsFor);
+    await multiselectEl.click();
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(await element(by.css('ul[role="listbox"]'))), config.waitsFor);
+    const multiselectSearchEl = await element(by.id('dropdown-search'));
+    await multiselectSearchEl.click();
+    await multiselectSearchEl.sendKeys(protractor.Key.ARROW_DOWN);
+    await multiselectSearchEl.sendKeys(protractor.Key.ARROW_DOWN);
+    await multiselectSearchEl.sendKeys(protractor.Key.SPACE);
+    await multiselectSearchEl.sendKeys(protractor.Key.ARROW_DOWN);
+    await multiselectSearchEl.sendKeys(protractor.Key.SPACE);
+
+    expect(await element.all(by.css('#datagrid tbody tr')).count()).toEqual(4);
+    await utils.checkForErrors();
   });
 });
 
@@ -1906,13 +2042,13 @@ describe('Datagrid paging indeterminate multiple select tests', () => {
     await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(1) td:nth-child(1)')).click();
     await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(2) td:nth-child(1)')).click();
 
-    expect(await element.all(await by.css('.datagrid-row.is-selected')).count()).toEqual(2);
+    expect(await element.all(by.css('.datagrid-row.is-selected')).count()).toEqual(2);
 
     await browser.driver.sleep(config.sleep);
     await element(by.css('.pager-next a')).click();
     await browser.driver.sleep(config.sleep);
 
-    expect(await element.all(await by.css('.datagrid-row.is-selected')).count()).toEqual(0);
+    expect(await element.all(by.css('.datagrid-row.is-selected')).count()).toEqual(0);
 
     await browser.driver.sleep(config.sleep);
     await element(by.css('.pager-prev a')).click();
@@ -1926,7 +2062,7 @@ describe('Datagrid paging indeterminate single select tests', () => {
   beforeEach(async () => {
     await utils.setPage('/components/datagrid/test-paging-select-indeterminate-single?layout=nofrills');
 
-    const datagridEl = await element(by.css('#datagrid tbody tr:nth-child(1)'));
+    const datagridEl = await element(by.css('#datagrid tbody tr:nth-child(5)'));
     await browser.driver
       .wait(protractor.ExpectedConditions.presenceOf(datagridEl), config.waitsFor);
   });
@@ -1981,7 +2117,9 @@ describe('Datagrid paging serverside multi select tests', () => {
 
   it('Should be able to select and have selections clear when paging', async () => {
     await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(1) td:nth-child(1)')).click();
+    await browser.driver.sleep(config.sleep);
     await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(2) td:nth-child(1)')).click();
+    await browser.driver.sleep(config.sleep);
 
     expect(await element.all(by.css('.datagrid-row.is-selected')).count()).toEqual(2);
 
@@ -2066,23 +2204,19 @@ describe('Datagrid paging serverside single select tests', () => {
 
   it('Should be able to select and have selections clear when paging', async () => {
     await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(1) td:nth-child(1)')).click();
+    await browser.driver.sleep(config.sleep);
     await element(by.css('#datagrid .datagrid-body tbody tr:nth-child(2) td:nth-child(1)')).click();
+    await browser.driver.sleep(config.sleep);
 
     expect(await element.all(by.css('.datagrid-row.is-selected')).count()).toEqual(1);
 
     await element(by.css('.pager-next a')).click();
     await browser.driver.sleep(config.sleep);
 
-    await browser.driver
-      .wait(protractor.ExpectedConditions.elementToBeClickable(await element(by.css('.pager-prev'))), config.waitsFor);
-
     expect(await element.all(by.css('.datagrid-row.is-selected')).count()).toEqual(0);
 
     await element(by.css('.pager-prev a')).click();
     await browser.driver.sleep(config.sleep);
-
-    await browser.driver
-      .wait(protractor.ExpectedConditions.elementToBeClickable(await element(by.css('.pager-next'))), config.waitsFor);
 
     expect(await element.all(by.css('.datagrid-row.is-selected')).count()).toEqual(0);
   });
@@ -2106,7 +2240,7 @@ describe('Datagrid save user settings', () => {
     await utils.checkForErrors();
   });
 
-  if (!utils.isCI()) {
+  if (!utils.isCI() && !utils.isBS()) {
     it('Should save active page on reload', async () => {
       await element(by.css('li.pager-next a')).click();
       await browser.driver.sleep(config.sleep);
@@ -2500,7 +2634,7 @@ describe('Datagrid tooltip tests', () => {
 
   it('Should show tooltip on header text cut off with ellipsis', async () => {
     await browser.actions().mouseMove(element(by.css('.datagrid-header thead th[data-column-id="orderDate"] .datagrid-column-wrapper'))).perform();
-    await browser.driver.sleep(config.sleep);
+    await browser.driver.sleep(config.sleepLonger);
     await browser.driver
       .wait(protractor.ExpectedConditions.presenceOf(await element(by.css('.grid-tooltip'))), config.waitsFor);
     const tooltip = await element(by.css('.grid-tooltip'));

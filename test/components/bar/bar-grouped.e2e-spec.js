@@ -28,7 +28,9 @@ describe('Grouped Bar Chart example-index tests', () => {
   });
 
   it('Should highlight when selected', async () => {
+    await browser.driver.sleep(config.sleep);
     await element(by.css('.series-group:nth-child(-n+3)')).click();
+    await browser.driver.sleep(config.sleep);
 
     expect(await element(by.css('.series-group:nth-child(-n+3)')).getAttribute('class')).toContain('is-selected');
   });
@@ -36,7 +38,7 @@ describe('Grouped Bar Chart example-index tests', () => {
   if (utils.isChrome() && utils.isCI()) {
     it('Should not visual regress', async () => {
       const containerEl = await element(by.className('container'));
-      await browser.driver.sleep(config.sleep);
+      await browser.driver.sleep(config.sleepLonger);
 
       expect(await browser.protractorImageComparison.checkElement(containerEl, 'bar-grouped-index')).toBeLessThan(1);
     });
@@ -74,7 +76,7 @@ describe('Grouped Bar many groups tests', () => {
   if (utils.isChrome() && utils.isCI()) {
     it('Should not visual regress', async () => {
       const containerEl = await element(by.className('container'));
-      await browser.driver.sleep(config.sleep);
+      await browser.driver.sleep(config.sleepLonger);
 
       expect(await browser.protractorImageComparison.checkElement(containerEl, 'bar-grouped-many-groups')).toBeLessThan(1);
     });

@@ -1440,6 +1440,10 @@ Dropdown.prototype = {
     } else {
       this.filterTerm += $.actualChar(e).toLowerCase();
 
+      if (this.filterTerm === '') {
+        return;
+      }
+
       if (e.key !== this.filterTerm && e.key.toLowerCase() === this.filterTerm
           && !self.settings.noSearch) {
         this.filterTerm = e.key;
@@ -2917,6 +2921,7 @@ Dropdown.prototype = {
     // update the list and set a new value, if applicable
     this.updateList();
     this.setDisplayedValues();
+    this.toggleTooltip();
 
     this.element.trigger('has-updated');
 

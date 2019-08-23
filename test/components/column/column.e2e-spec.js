@@ -81,6 +81,8 @@ describe('Custom Tooltips page tests', () => {
 describe('Column Chart example-index tests', () => {
   beforeEach(async () => {
     await utils.setPage('/components/column/example-index?layout=nofrills');
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(await element(by.css('.bar.series-2'))), config.waitsFor);
   });
 
   it('Should not have errors', async () => {
@@ -90,11 +92,11 @@ describe('Column Chart example-index tests', () => {
   if (utils.isChrome() && utils.isCI()) {
     it('Should not visual regress', async () => {
       const containerEl = await element(by.className('container'));
-      await browser.driver.sleep(config.sleep);
+      await browser.driver.sleep(config.sleepLonger);
 
       await browser.driver
         .wait(protractor.ExpectedConditions.presenceOf(containerEl), config.waitsFor);
-      await browser.driver.sleep(config.sleep);
+      await browser.driver.sleep(config.sleepLonger);
 
       expect(await browser.protractorImageComparison.checkElement(containerEl, 'column-index')).toEqual(0);
     });
@@ -104,6 +106,8 @@ describe('Column Chart example-index tests', () => {
 describe('Column Chart balance tests', () => {
   beforeEach(async () => {
     await utils.setPage('/components/column/example-balance?layout=nofrills');
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(await element(by.css('.bar.series-2'))), config.waitsFor);
   });
 
   it('Should not have errors', async () => {
@@ -127,6 +131,8 @@ describe('Column Chart balance tests', () => {
 describe('Grouped Column Chart tests', () => {
   beforeEach(async () => {
     await utils.setPage('/components/column-grouped/example-index?layout=nofrills');
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(await element(by.css('.bar.series-2'))), config.waitsFor);
   });
 
   it('Should not have errors', async () => {
@@ -150,6 +156,8 @@ describe('Grouped Column Chart tests', () => {
 describe('Stacked Column Chart tests', () => {
   beforeEach(async () => {
     await utils.setPage('/components/column-stacked/example-index?layout=nofrills');
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(await element(by.css('.bar.series-2'))), config.waitsFor);
   });
 
   it('Should not have errors', async () => {

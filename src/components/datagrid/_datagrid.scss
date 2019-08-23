@@ -27,6 +27,7 @@
         left: 1px;
         position: absolute;
         top: 2px;
+        visibility: visible !important;
         width: 10px;
       }
     }
@@ -418,6 +419,15 @@ $datagrid-short-row-height: 25px;
     }
   }
 
+  &.has-inline-editor {
+    td {
+      &:focus,
+      &.is-focused {
+        box-shadow: none;
+      }
+    }
+  }
+
   //Short and Medium Row height
   &.short-rowheight {
     .datagrid-cell-wrapper {
@@ -719,6 +729,17 @@ $datagrid-short-row-height: 25px;
 .full-height .datagrid-body {
   .empty-message {
     @include vertical-align();
+  }
+}
+
+.card,
+.widget {
+  .empty-message {
+    left: 50%;
+    margin-top: 15px;
+    position: absolute;
+    top: 50%;
+    transform: translateX(-50%) translateY(-50%);
   }
 }
 
@@ -1163,7 +1184,8 @@ $datagrid-short-row-height: 25px;
             padding-left: 10px;
 
             .trigger {
-              top: -7px;
+              margin-left: -34px;
+              top: -6px;
             }
           }
 

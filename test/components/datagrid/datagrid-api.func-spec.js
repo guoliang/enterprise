@@ -677,7 +677,7 @@ describe('Datagrid API', () => {
     const end = new Date().getTime();
     const result = (end - start) / 1000; // seconds
 
-    expect(result).toBeLessThan(0.5);
+    expect(result).toBeLessThan(0.65);
     expect(table[0].querySelectorAll('tr').length).toEqual(2000);
     expect(table[0].querySelector('tr').outerHTML).toEqual('<tr><td>1</td><td>T100</td><td><b>sku #9000001-237</b></td><td>Compressor</td><td>Assemble Paint</td><td>1</td><td>true</td><td>210.99</td><td>0.1</td><td>OK</td><td>2018-08-07T06:00:00.000Z</td><td>Action</td></tr>');
   });
@@ -699,7 +699,7 @@ describe('Datagrid API', () => {
     const end = new Date().getTime();
     const result = (end - start) / 1000; // seconds
 
-    expect(result).toBeLessThan(3);
+    expect(result).toBeLessThan(4.5);
     expect(table[0].querySelectorAll('tr').length).toEqual(2000);
     expect(table[0].querySelector('tr').outerHTML).toEqual('<tr><td><div><span> T100</span></div></td><td><div><a href="#" tabindex="-1" role="presentation" class="hyperlink ">Compressor</a></div></td><td><div>Assemble Paint</div></td><td><div>$#,##0.00</div></td><td><div>10 %</div></td><td><div>8/7/2018</div></td><td><div></div></td></tr>');
   });

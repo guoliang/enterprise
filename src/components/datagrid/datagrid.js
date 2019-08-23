@@ -104,6 +104,7 @@ const COMPONENT_NAME = 'datagrid';
  * @param {Function} [settings.onDestroyCell=null] A call back that goes along with onPostRenderCel and will fire when this cell is destroyed and you need noification of that.
  * @param {Function} [settings.onEditCell=null] A callback that fires when a cell is edited, the editor object is passed in to the function
  * @param {Function} [settings.onExpandRow=null] A callback function that fires when expanding rows. To be used. when expandableRow is true. The function gets eventData about the row and grid and a response function callback. Call the response function with markup to append and delay opening the row.
+ * @param {Function} [settings.onKeyDown=null] A callback function that fires when any key is pressed down.
  * @param {boolean}  [settings.searchExpandableRow=true] If true keywordSearch will search in expandable rows (default). If false it will not search expandable rows.
  * @param {object}   [settings.emptyMessage]
  * @param {object}   [settings.emptyMessage.title='No Data Available']
@@ -197,6 +198,7 @@ const DATAGRID_DEFAULTS = {
   onDestroyCell: null,
   onEditCell: null,
   onExpandRow: null,
+  onKeyDown: null,
   emptyMessage: { title: (Locale ? Locale.translate('NoData') : 'No Data Available'), info: '', icon: 'icon-empty-no-data' },
   searchExpandableRow: true,
   allowChildExpandOnMatch: false
@@ -298,6 +300,7 @@ Datagrid.prototype = {
   */
   initSettings() {
     this.ignoredColumnById('rowStatus');
+    this.setInlineActionableMode();
     this.sortColumn = { sortField: null, sortAsc: true };
     this.gridCount = $('.datagrid').length + 1;
     this.lastSelectedRow = 0; // Remember index to use shift key
@@ -325,6 +328,31 @@ Datagrid.prototype = {
     }
     if (column.index > -1) {
       s.columns.splice(column.index, 1);
+    }
+  },
+
+  /**
+  * Set `actionableMode` if found inlineEditor.
+  * @private
+  * @returns {void}
+  */
+  setInlineActionableMode() {
+    const s = this.settings;
+    if (!s.columns || (s.columns && !s.columns.length)) {
+      return;
+    }
+    const column = { index: -1 };
+    for (let i = 0, l = s.columns.length; i < l; i++) {
+      if (s.columns[i].inlineEditor) {
+        column.index = i;
+      }
+    }
+    this.inlineMode = column.index > -1;
+    if (this.inlineMode) {
+      this.element[0].classList.add('has-inline-editor');
+      this.settings.actionableMode = true;
+    } else {
+      this.element[0].classList.remove('has-inline-editor');
     }
   },
 
@@ -441,6 +469,7 @@ Datagrid.prototype = {
     }
     // Add row status
     data.rowStatus = { icon: 'new', text: Locale.translate('New'), tooltip: Locale.translate('New') };
+    this.saveDirtyRows();
 
     // Add to array
     const appendArray = this.settings.groupable &&
@@ -452,6 +481,7 @@ Datagrid.prototype = {
       appendArray.splice(location, 0, data);
     }
 
+    this.restoreDirtyRows();
     this.setRowGrouping();
     this.pagerRefresh(location);
     this.syncSelectedRowsIdx();
@@ -1275,7 +1305,7 @@ Datagrid.prototype = {
 
     if (this.restoreFilter) {
       this.restoreFilter = false;
-      this.applyFilter(this.savedFilter, 'render');
+      this.applyFilter(this.savedFilter, 'restore');
       this.savedFilter = null;
     } else if (this.filterExpr && this.filterExpr.length > 0) {
       this.setFilterConditions(this.filterExpr);
@@ -1612,6 +1642,8 @@ Datagrid.prototype = {
       elem.find('select.multiselect').each(function () {
         const multiselect = $(this);
         multiselect.multiselect(col.editorOptions).on('selected.datagrid', () => {
+          // Wierd Hack - Sync to "sync" up the filter row
+          $(`#${$(this).attr('id')}`).val($(this).val());
           self.applyFilter(null, 'selected');
         });
 
@@ -2168,6 +2200,7 @@ Datagrid.prototype = {
         type: 'filtered'
       });
     }
+
     /**
     * Fires after a filter action ocurs
     * @event filtered
@@ -2178,6 +2211,10 @@ Datagrid.prototype = {
     * @property {object} args.conditions An object with all the condition data.
     * @property {string} args.trigger Info on what was the triggering action. May be render, select or key
     */
+    if (this.settings.disableClientFilter && trigger === 'restore') {
+      return;
+    }
+
     this.element.trigger('filtered', { op: 'apply', conditions, trigger });
     this.saveUserSettings();
   },
@@ -7732,7 +7769,8 @@ Datagrid.prototype = {
       let handled = false;
 
       // F2 - toggles actionableMode "true" and "false"
-      if (key === 113) {
+      // Force to not toggle, if "inlineMode: true"
+      if (key === 113 && !this.inlineMode) {
         self.settings.actionableMode = !self.settings.actionableMode;
         handled = true;
       }
@@ -7772,7 +7810,6 @@ Datagrid.prototype = {
         }
         return self.dataRowIndex(visibleRow);
       };
-
       if (!node.length) {
         self.activeCell.node = self.cellNode(row, cell);
         node = self.activeCell.node;
@@ -7810,6 +7847,23 @@ Datagrid.prototype = {
       const lastRow = visibleRows.last();
       const lastCell = self.settings.columns.length - 1;
 
+      if (self.settings.onKeyDown) {
+        const response = (isCancelled) => {
+          if (!isCancelled) {
+            e.stopPropagation();
+            e.preventDefault();
+          }
+        };
+
+        const args = { activeCell: self.activeCell, row, cell };
+        const ret = self.settings.onKeyDown(e, args, response);
+        if (ret === false || !response) {
+          e.stopPropagation();
+          e.preventDefault();
+          return;
+        }
+      }
+
       // Tab, Left, Up, Right and Down arrow keys.
       if ([9, 37, 38, 39, 40].indexOf(key) !== -1) {
         if (target.closest('.code-block').length &&
@@ -7828,22 +7882,6 @@ Datagrid.prototype = {
 
       // Tab, Left and Right arrow keys.
       if ([9, 37, 39].indexOf(key) !== -1) {
-        if (key === 9 && self.settings.onKeyDown) {
-          const ret = self.settings.onKeyDown(e);
-          if (ret === false) {
-            e.stopPropagation();
-            e.preventDefault();
-            return;
-          }
-        }
-
-        if (key === 9 && self.editor && self.editor.name === 'input' && col.inlineEditor === true) {
-          // Editor.destroy
-          self.editor.destroy();
-          self.editor = null;
-          return;
-        }
-
         if (key === 9 && !self.settings.actionableMode) {
           return;
         }
@@ -7871,7 +7909,7 @@ Datagrid.prototype = {
             self.setActiveCell(row, cell);
           }
 
-          if (key === 9 && self.settings.actionableMode) {
+          if (self.settings.actionableMode) {
             self.makeCellEditable(self.activeCell.rowIndex, cell, e);
             if (self.containsTextField(node) && self.containsTriggerField(node)) {
               self.quickEditMode = true;
@@ -7912,7 +7950,7 @@ Datagrid.prototype = {
         }
       }
 
-      // Press Control+Spacebar to announce the current row when using a screen reader.
+      // Press (Control + Spacebar) to announce the current row when using a screen reader.
       if (key === 32 && e.ctrlKey && node) {
         let string = '';
         row = node.closest('tr');
@@ -9320,6 +9358,12 @@ Datagrid.prototype = {
   setDirtyCell(row, cell, dirtyOptions) {
     const cellNode = this.cellNode(row, cell);
 
+    // Do not show dirty indicator on new cells or cells with errors on them
+    if (this.settings.dataset[row] && this.settings.dataset[row].rowStatus &&
+      (this.settings.dataset[row].rowStatus.icon === 'new' || row === 0)) {
+      return;
+    }
+
     if (dirtyOptions) {
       this.addToDirtyArray(row, cell, dirtyOptions);
     }
@@ -10102,10 +10146,10 @@ Datagrid.prototype = {
     }
     const sort = this.sortFunction(this.sortColumn.sortId, this.sortColumn.sortAsc);
 
-    this.setDirtyBeforeSort();
+    this.saveDirtyRows();
     this.settings.dataset.sort(sort);
     this.setTreeDepth();
-    this.setDirtyAfterSort();
+    this.restoreDirtyRows();
 
     // Resync the _selectedRows array
     if (this.settings.selectable) {
@@ -10114,11 +10158,9 @@ Datagrid.prototype = {
   },
 
   /**
-  * Set current data to sync up dirtyArray before sort
-  * @private
-  * @returns {void}
-  */
-  setDirtyBeforeSort() {
+   * Set current data to sync up dirtyArray before sort
+   */
+  saveDirtyRows() {
     const s = this.settings;
     const dataset = s.treeGrid ? s.treeDepth : s.dataset;
     if (s.showDirty && !this.settings.source && this.dirtyArray && this.dirtyArray.length) {
@@ -10136,7 +10178,7 @@ Datagrid.prototype = {
   * @private
   * @returns {void}
   */
-  setDirtyAfterSort() {
+  restoreDirtyRows() {
     const s = this.settings;
     const dataset = s.treeGrid ? s.treeDepth : s.dataset;
     if (s.showDirty && this.dirtyArray && this.dirtyArray.length) {

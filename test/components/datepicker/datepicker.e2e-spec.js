@@ -738,6 +738,11 @@ describe('Datepicker Timeformat Tests', () => {
 describe('Datepicker Umalqura Tests', () => {
   beforeEach(async () => {
     await utils.setPage('/components/datepicker/example-umalqura');
+    await browser.driver.sleep(config.sleep);
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
   });
 
   it('Should render Umalqura monthview', async () => {
@@ -967,7 +972,6 @@ describe('Datepicker Umalqura EG Tests', () => {
 describe('Datepicker Gregorian SA Tests', () => {
   beforeEach(async () => {
     await utils.setPage('/components/datepicker/test-ar-sa-gregorian');
-    await browser.driver.sleep(config.sleep);
   });
 
   it('Should render gregorian on ar-SA time', async () => {
