@@ -257,12 +257,6 @@ Tooltip.prototype = {
         .on(`mouseleave.${COMPONENT_NAME}`, () => {
           hideOnTimer();
         })
-        .on(`click.${COMPONENT_NAME}`, () => {
-          if (self.isTouch) {
-            return;
-          }
-          showImmediately();
-        })
         .on(`longpress.${COMPONENT_NAME}`, () => {
           showImmediately();
         })
