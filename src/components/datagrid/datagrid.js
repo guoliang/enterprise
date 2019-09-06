@@ -6739,9 +6739,10 @@ Datagrid.prototype = {
    * @param {number} idx The row index to select
    * @param {boolean} nosync Do sync the header
    * @param {boolean} noTrigger Do not trigger events.
+   * @param {boolean} forceSelect Force select a row even when disabled.
    * @returns {void}
    */
-  selectRow(idx, nosync, noTrigger) {
+  selectRow(idx, nosync, noTrigger, forceSelect) {
     let rowNode = null;
     let dataRowIndex;
     const self = this;
@@ -6751,7 +6752,7 @@ Datagrid.prototype = {
       return;
     }
 
-    if (this.isRowDisabled(idx)) {
+    if (!forceSelect && this.isRowDisabled(idx)) {
       return;
     }
 
@@ -7541,9 +7542,10 @@ Datagrid.prototype = {
    * @param  {number/array} row A row index or array of row indexes to select.
    * @param  {boolean} nosync Dont sync the header.
    * @param  {boolean} selectAll Internally used.
+   * @param  {boolean} forceSelect Force select a row even when disabled.
    * @returns {void}
    */
-  selectRows(row, nosync, selectAll) {
+  selectRows(row, nosync, selectAll, forceSelect) {
     let idx = -1;
     const s = this.settings;
     const isSingle = s.selectable === 'single';
@@ -7567,13 +7569,13 @@ Datagrid.prototype = {
 
       // Select - may be passed array or int
       idx = ((Object.prototype.toString.call(row) === '[object Array]') ? row[0] : row.index());
-      this.selectRow(idx, true, true);
+      this.selectRow(idx, true, true, forceSelect);
     }
 
     if (isMultiple || isSiblings) {
       if (Object.prototype.toString.call(row) === '[object Array]') {
         for (let i = 0; i < row.length; i++) {
-          this.selectRow(row[i], true, true);
+          this.selectRow(row[i], true, true, forceSelect);
         }
 
         if (row.length === 0) {
@@ -7582,7 +7584,7 @@ Datagrid.prototype = {
           }
         }
       } else {
-        this.selectRow(row.index(), true, true);
+        this.selectRow(row.index(), true, true, forceSelect);
       }
     }
 
