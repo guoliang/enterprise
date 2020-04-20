@@ -3,6 +3,7 @@ import { utils } from '../../utils/utils';
 import { DOM } from '../../utils/dom';
 import { Environment as env } from '../../utils/environment';
 import { Locale } from '../locale/locale';
+import { renderLoop, RenderLoopItem } from '../../utils/renderloop';
 import { xssUtils } from '../../utils/xss';
 
 // jQuery components
@@ -10,6 +11,9 @@ import '../place/place.jquery';
 
 // Component Name
 const COMPONENT_NAME = 'tooltip';
+
+// Trigger Methods
+const TOOLTIP_TRIGGER_METHODS = ['hover', 'immediate', 'click', 'focus'];
 
 /**
  * Tooltip and Popover Control
@@ -43,7 +47,7 @@ const TOOLTIP_DEFAULTS = {
   content: null,
   offset: { top: 10, left: 10 },
   placement: 'top',
-  trigger: 'hover',
+  trigger: TOOLTIP_TRIGGER_METHODS[0],
   title: null,
   beforeShow: null,
   popover: null,
@@ -71,10 +75,23 @@ function Tooltip(element, settings) {
 Tooltip.prototype = {
 
   /**
-   * @returns {boolean} whether or not the tooltip/popover is currently showing
+   * @returns {boolean} whether or not the tooltip/popover element is currently visible
    */
   get visible() {
-    return DOM.hasClass(this.element[0], 'is-hidden') === false;
+    return this.tooltip.length &&
+      this.tooltip[0].classList.contains('hidden') === false &&
+      this.tooltip[0].classList.contains('is-hidden') === false;
+  },
+
+  /**
+   * @returns {boolean} whether or not the tooltip/popover is able to be displayed,
+   * which depends on its trigger element and all of its parent elements being visible.
+   */
+  get canBeShown() {
+    return !this.reopenDelay &&
+      !DOM.hasClass(this.element[0], 'hidden') &&
+      !DOM.hasClass(this.element[0], 'is-hidden') &&
+      this.element.parents('.hidden, .is-hidden').length < 1;
   },
 
   /**
@@ -82,6 +99,20 @@ Tooltip.prototype = {
    */
   get popupmenuAPI() {
     return this.element.data('popupmenu');
+  },
+
+  /**
+   * @returns {boolean} whether or not the contents of this tooltip/popover currently have focus
+   */
+  get isFocused() {
+    const activeElem = document.activeElement;
+    if (this.activeElement.is($(activeElem))) {
+      return true;
+    }
+    if (this.tooltip && this.tooltip.length && this.tooltip[0].contains(activeElem)) {
+      return true;
+    }
+    return false;
   },
 
   /**
@@ -148,6 +179,7 @@ Tooltip.prototype = {
     }
 
     this.isRTL = Locale.isRTL();
+    DOM.addClass(this.element[0], 'has-tooltip');
   },
 
   /**
@@ -207,6 +239,9 @@ Tooltip.prototype = {
       strategy: 'flip'
     });
 
+    // Attach a reference to this tooltip API to the actual tooltip/popover element
+    $.data(this.tooltip[0], 'tooltip', this);
+
     this.setTargetContainer();
   },
 
@@ -218,31 +253,44 @@ Tooltip.prototype = {
   handleEvents() {
     const self = this;
     const delay = 400;
+    const renderLoopDelay = (delay / 30);
     let timer;
 
+    function clearTimer() {
+      if (timer && timer.destroy) {
+        timer.destroy();
+      }
+    }
+
     function showOnTimer() {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        if (self.element.is(':visible')) {
+      clearTimer();
+      timer = new RenderLoopItem({
+        duration: renderLoopDelay,
+        timeoutCallback() {
           self.show();
         }
-      }, delay);
+      });
+      renderLoop.register(timer);
     }
 
     function hideOnTimer() {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        self.hide();
-      }, delay);
+      clearTimer();
+      timer = new RenderLoopItem({
+        duration: renderLoopDelay,
+        timeoutCallback() {
+          self.hide();
+        }
+      });
+      renderLoop.register(timer);
     }
 
     function showImmediately() {
-      clearTimeout(timer);
+      clearTimer();
       self.show();
     }
 
     function hideImmediately() {
-      clearTimeout(timer);
+      clearTimer();
       self.hide();
     }
 
@@ -267,9 +315,9 @@ Tooltip.prototype = {
 
     function toggleTooltipDisplay() {
       if (!self.visible) {
-        hideImmediately();
-      } else {
         showImmediately();
+      } else {
+        hideImmediately();
       }
     }
 
@@ -472,10 +520,19 @@ Tooltip.prototype = {
 
     this.tooltip[0].setAttribute('class', classes);
 
+    const useHtml = env.browser.name === 'ie' && env.browser.isIE11() && content instanceof $ && content.length && this.settings.trigger === 'hover';
+
     if (typeof content === 'string') {
       content = $(content);
       contentArea.html(content);
       contentArea.find('.hidden').removeClass('hidden');
+    } else if (useHtml) {
+      const clone = content[0].cloneNode(true);
+      const id = clone.id;
+      if (id) {
+        clone.id = `${id}-${this.uniqueId}`;
+      }
+      contentArea.html(clone.outerHTML);
     } else {
       contentArea.html(content);
     }
@@ -490,7 +547,10 @@ Tooltip.prototype = {
       this.settings.placementOpts.parent = this.element;
     }
 
-    content[0].classList.remove('hidden');
+    if (!useHtml) {
+      content[0].classList.remove('hidden');
+    }
+
     contentArea[0].firstElementChild.classList.remove('hidden');
 
     const parentWidth = this.settings.placementOpts.parent.width();
@@ -554,15 +614,20 @@ Tooltip.prototype = {
    */
   show(newSettings, ajaxReturn) {
     const self = this;
-    this.isInPopup = false;
-
-    if (newSettings) {
-      this.settings = utils.mergeSettings(this.element[0], newSettings, this.settings);
-    }
 
     // Don't open if this is an Actions Button with an open popupmenu
     if (this.popupmenuAPI && this.popupmenuAPI.isOpen) {
       return;
+    }
+
+    // Don't open if this tooltip's trigger element is currently hidden.
+    if (!this.canBeShown) {
+      return;
+    }
+
+    this.isInPopup = false;
+    if (newSettings) {
+      this.settings = utils.mergeSettings(this.element[0], newSettings, this.settings);
     }
 
     if (this.settings.beforeShow && !ajaxReturn) {
@@ -604,6 +669,8 @@ Tooltip.prototype = {
 
     this.tooltip[0].removeAttribute('style');
     this.tooltip[0].classList.add(this.settings.placement);
+    this.tooltip[0].classList.add('is-open');
+    DOM.addClass(this.element[0], 'has-open-tooltip');
 
     if (this.settings.isError || this.settings.isErrorColor) {
       this.tooltip[0].classList.add('is-error');
@@ -653,7 +720,7 @@ Tooltip.prototype = {
           if (target.closest('.popover').length === 1 &&
               target.closest('.popover').not('.monthview-popup').length &&
               self.element.prev().is('.datepicker')) {
-            self.hide(e);
+            self.hide();
           }
         })
         .on(`keydown.${COMPONENT_NAME}-${self.uniqueId}`, (e) => {
@@ -687,7 +754,7 @@ Tooltip.prototype = {
         self.hide();
       });
 
-      self.element.closest('.datagrid-body').on('scroll.tooltip', () => {
+      self.element.closest('.datagrid-wrapper').on('scroll.tooltip', () => {
         self.hide();
       });
 
@@ -742,7 +809,9 @@ Tooltip.prototype = {
    */
   handleAfterPlace(e, placementObj) {
     this.tooltip.data('place').setArrowPosition(e, placementObj, this.tooltip);
-    this.tooltip.triggerHandler('tooltipafterplace', [placementObj]);
+    setTimeout(() => {
+      this.tooltip.triggerHandler('tooltipafterplace', [placementObj]);
+    });
   },
 
   /**
@@ -807,7 +876,7 @@ Tooltip.prototype = {
 
   /**
    * Hides the Tooltip/Popover
-   * @param {boolean} [force] Force the tooltip to hide no matter the settings.
+   * @param {boolean} [force=false] Force the tooltip to hide no matter the settings.
    * @returns {void}
    */
   hide(force) {
@@ -820,7 +889,9 @@ Tooltip.prototype = {
       return;
     }
 
+    DOM.removeClass(this.element[0], 'has-open-tooltip');
     this.tooltip[0].classList.remove('is-personalizable');
+    this.tooltip[0].classList.remove('is-open');
     this.tooltip[0].classList.add('is-hidden');
     this.tooltip[0].style.left = '';
     this.tooltip[0].style.top = '';
@@ -903,8 +974,19 @@ Tooltip.prototype = {
       this.hide();
     }
 
-    if (this.tooltip && this.tooltip.data('place')) {
-      this.tooltip.data('place').destroy();
+    if (this.reopenDelay) {
+      delete this.reopenDelay;
+    }
+
+    if (this.tooltip && this.tooltip.length) {
+      if (this.tooltip.data('place')) {
+        this.tooltip.data('place').destroy();
+      }
+
+      // Remove a link back to this API, if one was generated
+      if (this.tooltip.data('tooltip')) {
+        $.removeData(this.tooltip[0], 'tooltip');
+      }
     }
 
     this.element.off([
@@ -915,6 +997,8 @@ Tooltip.prototype = {
       `updated.${COMPONENT_NAME}`,
       `focus.${COMPONENT_NAME}`,
       `blur.${COMPONENT_NAME}`].join(' '));
+
+    DOM.removeClass(this.element[0], 'has-tooltip');
 
     this.detachOpenEvents();
 

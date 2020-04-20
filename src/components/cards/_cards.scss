@@ -1,6 +1,8 @@
 // Cards/Widgets
 //=======================================================
 
+@import '../button/button-chevron';
+
 @mixin auto-height {
   height: auto;
   min-height: 0;
@@ -129,7 +131,7 @@
     }
   }
 
-  [class^='btn'] {
+  [class*='btn'] {
     color: $listview-toolbar-button-text-color;
 
     span {

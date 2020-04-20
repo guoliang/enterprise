@@ -56,9 +56,30 @@ Trackdirty.prototype = {
         const el = element.parent().find('[type="text"]');
         return el.val();
       }
-      default:
+      default: {
+        if (element.is('textarea') && element.closest('.editor-source').length === 1) {
+          const value = element.is(':visible') ? element.val() : element.text();
+          return this.trimEditorText(value);
+        }
         return element.val();
+      }
     }
+  },
+
+  /**
+   * Trim out the editor spaces for comparison.
+   * @private
+   * @param  {string} text The starting text.
+   * @returns {string} The trimmed text.
+   */
+  trimEditorText(text) {
+    return text.trim()
+      .replace(/>\s+</g, '')
+      .replace(/\s+/g, ' ')
+      .replace(' has-tooltip', '')
+      .replace(/<br( \/)?>/g, '<br>\n')
+      .replace(/<\/p> /g, '</p>\n\n')
+      .replace(/<\/blockquote>( )?/g, '</blockquote>\n\n');
   },
 
   /**
@@ -135,14 +156,14 @@ Trackdirty.prototype = {
 
     if (input.is('.editor')) {
       const textArea = input.parent().find('textarea');
-      textArea.data('original', this.valMethod(textArea));
+      textArea.data('original', this.trimEditorText(this.valMethod(textArea)));
     }
 
     input.data('original', this.valMethod(input, true))
       .on('resetdirty.dirty', () => {
         if (input.is('.editor')) {
           const textArea = input.parent().find('textarea');
-          textArea.data('original', this.valMethod(textArea));
+          textArea.data('original', this.trimEditorText(this.valMethod(textArea)));
         }
 
         input.data('original', this.valMethod(input))
@@ -186,10 +207,7 @@ Trackdirty.prototype = {
         // Add class and icon
         d.icon = el.prev();
         if (!d.icon.is('.icon-dirty')) {
-          if (input.is('[type="checkbox"]')) {
-            d.rect = this.getAbsolutePosition(label);
-            d.style = `left:${d.rect.left}px; top:${d.rect.top}px;`;
-          } else if (input.is('.colorpicker') && !Locale.isRTL()) {
+          if (input.is('.colorpicker') && !Locale.isRTL()) {
             d.rect = this.getAbsolutePosition(input);
             d.style = `left:${d.rect.left}px; top:${d.rect.top}px;`;
           }
@@ -226,12 +244,14 @@ Trackdirty.prototype = {
           // so get the elements with the value
           const textArea = field.find('textarea');
           original = textArea.data('original');
-          current = this.valMethod(textArea);
-
-          if (this.isIe || this.isIeEdge) {
-            current = input[0].innerHTML;
+          if (field.find('.editor-source').is(':visible')) {
+            current = textArea.val();
+          } else {
+            current = this.isIe || this.isIeEdge ? input[0].innerHTML : textArea.text();
           }
+          current = this.trimEditorText(current);
         }
+
         if (current === original || (input.attr('multiple') && utils.equals(current, original))) {
           input.removeClass('dirty');
           $('.icon-dirty, .msg-dirty', field).add(d.icon).add(d.msg).remove();

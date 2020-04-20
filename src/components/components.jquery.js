@@ -3,6 +3,7 @@
 
 // Foundational ====/
 import './button/button.jquery';
+import './button/button.set.jquery';
 import './hyperlinks/hyperlinks.jquery';
 import './icons/icons.jquery';
 import './mask/mask-input.jquery';
@@ -17,6 +18,7 @@ import './busyindicator/busyindicator.jquery';
 import './charts/charts.jquery';
 import './calendar/calendar.jquery';
 import './circlepager/circlepager.jquery';
+import './calendar-toolbar/calendar-toolbar.jquery';
 import './colorpicker/colorpicker.jquery';
 import './compositeform/compositeform.jquery';
 import './contextualactionpanel/contextualactionpanel.jquery';
@@ -31,6 +33,7 @@ import './field-filter/field-filter.jquery';
 import './field-options/field-options.jquery';
 import './fileupload/fileupload.jquery';
 import './fileupload-advanced/fileupload-advanced.jquery';
+import './fontpicker/fontpicker.jquery';
 import './homepage/homepage.jquery';
 import './listbuilder/listbuilder.jquery';
 import './listview/listview.jquery';
@@ -53,6 +56,7 @@ import './scrollaction/scrollaction.jquery';
 import './stepchart/stepchart.jquery';
 import './tabs/tabs.jquery';
 import './tag/tag.jquery';
+import './tag/tag.list.jquery';
 import './textarea/textarea.jquery';
 import './timepicker/timepicker.jquery';
 import './toast/toast.jquery';
@@ -66,8 +70,8 @@ import './tree/tree.jquery';
 import './treemap/treemap.jquery';
 import './validation/validation.jquery';
 import './validation/validation.utils';
+import './week-view/week-view.jquery';
 import './wizard/wizard.jquery';
-import './zoom/zoom.jquery';
 
 // Complex ====/
 import './datagrid/datagrid.jquery';

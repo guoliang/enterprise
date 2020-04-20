@@ -39,12 +39,12 @@ const theme = {
    */
   themes: function themes() {
     return [
-      { id: 'theme-soho-light', name: Locale.translate('SohoLightTheme'), legacyId: 'light' },
-      { id: 'theme-soho-dark', name: Locale.translate('SohoDarkTheme'), legacyId: 'dark' },
-      { id: 'theme-soho-contrast', name: Locale.translate('SohoHighContrastTheme'), legacyId: 'high-contrast' },
-      { id: 'theme-uplift-light', name: Locale.translate('UpliftLightTheme') },
-      { id: 'theme-uplift-dark', name: Locale.translate('UpliftDarkTheme') },
-      { id: 'theme-uplift-contrast', name: Locale.translate('UpliftHighContrastTheme') }
+      { id: 'theme-soho-light', name: Locale.translate('SohoLightTheme'), themeId: 'theme-soho', variantId: 'light', variantName: Locale.translate('Light'), legacyId: 'light' },
+      { id: 'theme-soho-dark', name: Locale.translate('SohoDarkTheme'), themeId: 'theme-soho', variantId: 'dark', variantName: Locale.translate('Dark'), legacyId: 'dark' },
+      { id: 'theme-soho-contrast', name: Locale.translate('SohoHighContrastTheme'), themeId: 'theme-soho', variantId: 'contrast', variantName: Locale.translate('Contrast'), legacyId: 'high-contrast' },
+      { id: 'theme-uplift-light', name: Locale.translate('UpliftLightTheme'), themeId: 'theme-uplift', variantId: 'light', variantName: Locale.translate('Light') },
+      { id: 'theme-uplift-dark', name: Locale.translate('UpliftDarkTheme'), themeId: 'theme-uplift', variantId: 'dark', variantName: Locale.translate('Dark') },
+      { id: 'theme-uplift-contrast', name: Locale.translate('UpliftHighContrastTheme'), themeId: 'theme-uplift', variantId: 'contrast', variantName: Locale.translate('Contrast') }
     ];
   },
 
@@ -66,7 +66,7 @@ const theme = {
    * Get the colors used in the current theme that are reccomended for personalization
    * @returns {object} An object full of the colors with id, name abd hex value
    */
-  personalizationColors: function themeColors() {
+  personalizationColors: function personalizationColors() {
     const palette = this.themeColors().palette;
     const brand = this.themeColors().brand;
     const personalize = {};

@@ -63,7 +63,7 @@ describe('Modal init example-modal tests', () => {
     await browser.driver.sleep(config.sleep);
     await element(by.css('body')).sendKeys(protractor.Key.ESCAPE);
     await browser.driver
-      .wait(protractor.ExpectedConditions.stalenessOf(element(by.className('overlay'))), config.waitsFor);
+      .wait(protractor.ExpectedConditions.stalenessOf(element(by.className('modal-engaged'))), config.waitsFor);
 
     expect(await element(by.css('body')).getAttribute('class')).not.toContain('modal-engaged');
   });
@@ -76,7 +76,7 @@ describe('Modal init example-modal tests', () => {
 
       await modalEl.sendKeys(protractor.Key.ENTER);
       await browser.driver
-        .wait(protractor.ExpectedConditions.presenceOf(element(by.className('overlay'))), config.waitsFor);
+        .wait(protractor.ExpectedConditions.presenceOf(element(by.css('.modal-wrapper'))), config.waitsFor);
 
       expect(await element(by.css('body')).getAttribute('class')).toContain('modal-engaged');
       await browser.driver.actions().mouseMove(modalEl).click().perform();
@@ -126,11 +126,15 @@ describe('Modal example-close-btn tests', () => {
 
     const modalBtn = await element(by.id('add-context'));
     await modalBtn.click();
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(element(by.css('.modal-engaged'))), config.waitsFor);
 
     expect(await element(by.css('body')).getAttribute('class')).toContain('modal-engaged');
 
     const closeBtn = await element(by.css('button.btn-close'));
     await closeBtn.click();
+    await browser.driver
+      .wait(protractor.ExpectedConditions.invisibilityOf(element(by.css('.modal-engaged'))), config.waitsFor);
 
     expect(await element(by.css('body')).getAttribute('class')).not.toContain('modal-engaged');
   });
@@ -179,8 +183,6 @@ describe('Modal example-validation tests', () => {
     });
 
     it('Should enable submit', async () => {
-      expect(await element(by.id('submit')).isEnabled()).toBe(false);
-
       const dropdownEl = await element(by.css('div.dropdown'));
       await browser.driver
         .wait(protractor.ExpectedConditions.presenceOf(dropdownEl), config.waitsFor);
@@ -208,16 +210,19 @@ describe('Modal example-validation-editor tests', () => {
       .wait(protractor.ExpectedConditions.presenceOf(modalEl), config.waitsFor);
     await modalEl.sendKeys(protractor.Key.ENTER);
     await browser.driver
-      .wait(protractor.ExpectedConditions.presenceOf(element(by.className('overlay'))), config.waitsFor);
+      .wait(protractor.ExpectedConditions.presenceOf(element(by.css('.modal-wrapper'))), config.waitsFor);
   });
 
   it('Should enable submit after add text to all fields', async () => {
-    expect(await element(by.id('submit')).isEnabled()).toBe(false);
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(element(by.css('#submit'))), config.waitsFor);
 
     const dropdownEl = await element.all(by.css('.modal div.dropdown')).first();
     await browser.driver
       .wait(protractor.ExpectedConditions.presenceOf(dropdownEl), config.waitsFor);
     await dropdownEl.click();
+    await browser.driver.sleep(config.sleep);
+
     const dropdownSearchEl = await element(by.id('dropdown-search'));
     await dropdownSearchEl.sendKeys(protractor.Key.ARROW_DOWN);
     await dropdownSearchEl.sendKeys(protractor.Key.ARROW_DOWN);
@@ -227,9 +232,10 @@ describe('Modal example-validation-editor tests', () => {
     await element(by.id('context-name')).sendKeys('test@test.com');
     await element(by.id('context-desc')).sendKeys('test description');
     await element(by.css('.editor')).sendKeys('test description');
-    await browser.driver.sleep(config.sleep);
+    await browser.driver.sleep(config.sleepLonger);
+    await browser.wait(protractor.ExpectedConditions.elementToBeClickable(element(by.css('#submit'))), config.waitsFor);
 
-    expect(await element(by.id('submit')).isEnabled()).toBe(true);
+    expect(await element(by.css('#submit')).isEnabled()).toBeTruthy();
   });
 });
 
@@ -263,6 +269,22 @@ describe('Modal manual content loading', () => {
   });
 });
 
+describe('Modal No Auto Focus', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/modal/test-no-autofocus.html');
+  });
+
+  it('Should not focus any fields with autoFocus false', async () => {
+    await element(by.id('show-modal')).click();
+
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(element(by.id('modal-1'))), config.waitsFor);
+    await browser.driver.sleep(config.sleep);
+
+    expect(await browser.driver.switchTo().activeElement().getAttribute('id')).toEqual('show-modal');
+  });
+});
+
 describe('Modal Full Content Tests', () => {
   beforeEach(async () => {
     await utils.setPage('/components/modal/example-full-content');
@@ -277,12 +299,121 @@ describe('Modal Full Content Tests', () => {
     await element.all(by.css('.modal-buttonset button')).first().click();
 
     expect(await element(by.id('modal')).getAttribute('class')).not.toContain('is-visible');
-    await browser.driver.sleep(config.sleep);
+    await browser.driver.sleep(config.sleepLonger);
 
     await element(by.css('#show')).click();
-    await browser.driver.sleep(config.sleep);
+    await browser.driver.sleep(config.sleepLonger);
 
     expect(await element(by.id('modal')).getAttribute('class')).toContain('is-visible');
     await element.all(by.css('.modal-buttonset button')).first().click();
+  });
+});
+
+describe('Modal xss tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/modal/test-escaped-title');
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('Should show encoded data in the title', async () => {
+    const buttonEl = await element(by.id('show-modal'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(buttonEl), config.waitsFor);
+    await buttonEl.click();
+
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(element(by.css('.modal'))), config.waitsFor);
+
+    expect(await element(by.css('.modal .modal-title')).getText()).toEqual('<script>alert("menuXSS")</script>');
+  });
+});
+
+describe('Modal button tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/modal/test-inline-buttons');
+    const modalEl = await element(by.id('btn-show-modal'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(modalEl), config.waitsFor);
+    await modalEl.click();
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(element(by.className('overlay'))), config.waitsFor);
+    await browser.driver.sleep(config.sleep);
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  if (utils.isChrome() && utils.isCI()) {
+    it('Should not visual regress on 4 buttons', async () => {
+      const bodyEl = await element(by.className('modal-engaged'));
+
+      expect(await browser.protractorImageComparison.checkElement(bodyEl, 'modal-buttons')).toEqual(0);
+    });
+  }
+});
+
+describe('Modal overlay opacity tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/modal/test-overlay-opacity');
+    const buttonEl = await element(by.id('add-context'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(buttonEl), config.waitsFor);
+    await buttonEl.click();
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(element(by.className('overlay'))), config.waitsFor);
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('Should be able to set overlay opacity to 30%', async () => {
+    const overlayEl = await element(by.css('.overlay'));
+
+    expect(await overlayEl.getCssValue('opacity')).toBe('0.3');
+  });
+});
+
+describe('Modal iframe focus tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/modal/test-iframe');
+
+    // Switch to the iframe
+    await browser.switchTo().frame(await element(by.css('#maincontent')).getWebElement());
+
+    const buttonEl = await element(by.id('add-context'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(buttonEl), config.waitsFor);
+    await buttonEl.click();
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(element(by.className('overlay'))), config.waitsFor);
+  });
+
+  it('should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('should correctly focus the first focusable element inside the Modal if focus is lost, and the user presses Tab', async () => {
+    // Temporarily sleep while we wait for focus to be set by the Modal.
+    await browser.driver.sleep(config.sleepLonger);
+
+    // Click the overlay to defocus the first element
+    // NOTE: directly clicking the element causes "Element click intercepted" errors in Protractor,
+    // so we give it arbitrary coordinates instead (which still clicks the overlay).
+    // await element(by.className('overlay')).click();
+    await browser.driver.actions().mouseMove({ x: 20, y: 150 }).mouseDown().perform();
+
+    // Press "Tab" key.  This should NOT cause the "Add Context" button to focus.
+    await browser.driver.actions().sendKeys(protractor.Key.TAB).perform();
+
+    // Detect if the elements are the same by comparing IDs
+    const targetElemId = await element(by.css('#subject')).getAttribute('id');
+    const focusedElemId = await browser.driver.switchTo().activeElement().getAttribute('id');
+
+    expect(focusedElemId).toEqual(targetElemId);
   });
 });

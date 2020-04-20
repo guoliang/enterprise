@@ -22,7 +22,7 @@ const COMPONENT_NAME = 'bar';
  * @param {boolean} [settings.isGrouped=false] If true its a grouped bar chart
  * @param {boolean} [settings.showLegend=true] If false the legend will not be shown.
  * @param {boolean|string} [settings.animate=true] true|false - will do or not do the animation, 'initial' will do only first time the animation.
- * @param {boolean} [settings.redrawOnResize=true] If true, the component will not resize when resizing the page.
+ * @param {boolean} [settings.redrawOnResize=true]  If set to false the component will not redraw when the page or parent is resized.
  * @param {string} [settings.formatterString] Use d3 format some examples can be found on http://bit.ly/1IKVhHh
  * @param {string} [settings.format=true] The d3 axis format
  * @param {string} [settings.tooltip=null] A tooltip for the whole chart
@@ -83,6 +83,7 @@ Bar.prototype = {
    * @returns {object} The component prototype for chaining.
    */
   init() {
+    this.namespace = utils.uniqueId({ classList: [this.settings.type, 'chart'] });
     this.width = 0;
     this
       .build()
@@ -121,7 +122,7 @@ Bar.prototype = {
     let maxTextWidth;
     let yMap;
     let isGrouped;
-    let legendMap;
+    let legendMap = [];
     let gindex;
     let totalBarsInGroup;
     let totalGroupArea;
@@ -133,6 +134,7 @@ Bar.prototype = {
     const tooltipDataCache = [];
     const tooltipData = self.settings.tooltip;
 
+    let barSpace = 0;
     let maxBarHeight = 30;
     const legendHeight = 30;
     const gapBetweenGroups = 0.6; // Makes it one bar in height (barHeight * 0.5)
@@ -148,6 +150,10 @@ Bar.prototype = {
       right: 30,
       bottom: dataset.length === 1 ? 5 : 30
     };
+    if (self.settings.isGrouped && dataset.length === 1) {
+      margins.bottom = 30;
+      barSpace = 2;
+    }
 
     this.element.addClass('bar-chart');
     if (this.settings.isGrouped) {
@@ -382,7 +388,7 @@ Bar.prototype = {
       .attr('class', 'series-group')
       .attr('data-group-id', (d, i) => i);
 
-    self.settings.isGrouped = (self.svg.selectAll('.series-group').nodes().length > 1 && !self.settings.isStacked);
+    self.settings.isGrouped = (self.svg.selectAll('.series-group').nodes().length > 1 && !self.settings.isStacked) || (self.settings.isGrouped && dataset.length === 1);
     self.settings.isSingle = (self.svg.selectAll('.series-group').nodes().length === 1 && self.settings.isStacked);
 
     groups.selectAll('rect')
@@ -408,7 +414,7 @@ Bar.prototype = {
           return `url(#${dataset[0][i].pattern})`;
         } else if (self.settings.isStacked && series[d.index].pattern) {
           return `url(#${series[d.index].pattern})`;
-        } else if (!self.settings.isStacked && legendMap[i].pattern) {
+        } else if (!self.settings.isStacked && legendMap[i] && legendMap[i].pattern) {
           return `url(#${legendMap[i].pattern})`;
         }
         return '';
@@ -421,10 +427,10 @@ Bar.prototype = {
           xScale(d.x0) + 1 : xScale(0) + 1;
       })
       .attr('y', d => (self.settings.isStacked ? yScale(d.y) :
-        ((((totalGroupArea - totalHeight) / 2) + (d.gindex * maxBarHeight)) + (d.index * gap))))
+        ((((totalGroupArea - totalHeight) / 2) + ((d.gindex * maxBarHeight) + (d.gindex * barSpace))) + (d.index * gap)))) // eslint-disable-line
       .attr('height', () => (self.settings.isStacked ? (yScale.bandwidth()) : maxBarHeight))
       .attr('width', 0) // Animated in later
-      .on('mouseenter', function (d, i) {
+      .on(`mouseenter.${self.namespace}`, function (d, i) {
         let j;
         let l;
         let hexColor;
@@ -603,7 +609,7 @@ Bar.prototype = {
           }
         }
       })
-      .on('mouseleave', () => {
+      .on(`mouseleave.${self.namespace}`, () => {
         clearInterval(tooltipInterval);
         charts.hideTooltip();
       })
@@ -631,6 +637,9 @@ Bar.prototype = {
         if (isSelected) {
           self.element.triggerHandler('selected', [d3.select(this).nodes(), {}, (isGrouped ? thisGroupId : i)]);
         }
+      })
+      .on(`contextmenu.${self.namespace}`, function (d) {
+        charts.triggerContextMenu(self.element, d3.select(this).nodes()[0], d);
       });
 
     // Adjust the labels
@@ -720,7 +729,7 @@ Bar.prototype = {
       return;
     }
 
-    const elems = document.querySelectorAll('.bar-chart .axis.y .tick text');
+    const elems = this.element[0].querySelectorAll('.bar-chart .axis.y .tick text');
     const dataset = this.settings.dataset;
     for (let i = 0; i < dataset.length; i++) {
       const values = Object.keys(dataset[i]).map(e => dataset[i][e]);
@@ -812,21 +821,21 @@ Bar.prototype = {
    * @private
    */
   handleEvents() {
-    this.element.on(`updated.${COMPONENT_NAME}`, () => {
+    this.element.on(`updated.${this.namespace}`, () => {
       this.updated();
     });
 
     if (this.settings.redrawOnResize) {
-      $('body').on(`resize.${COMPONENT_NAME}`, () => {
+      $('body').on(`resize.${this.namespace}`, () => {
         this.handleResize();
       });
 
-      this.element.on(`resize.${COMPONENT_NAME}`, () => {
+      this.element.on(`resize.${this.namespace}`, () => {
         this.handleResize();
       });
     }
 
-    $('html').on(`themechanged.${COMPONENT_NAME}`, () => {
+    $('html').on(`themechanged.${this.namespace}`, () => {
       this.updated();
     });
     return this;
@@ -867,17 +876,22 @@ Bar.prototype = {
    * @returns {void}
    */
   handleResize() {
-    if (this.width === this.element.width()) {
-      return;
+    const resize = () => {
+      if (this.width === this.element.width()) {
+        return;
+      }
+      this.width = this.element.width();
+      if (!this.element.is(':visible')) {
+        return;
+      }
+      this.updated();
+    };
+    // Waiting to complete the animatin on widget
+    if (this.element.closest('.homepage').length) {
+      setTimeout(() => resize(), 300);
+    } else {
+      resize();
     }
-
-    this.width = this.element.width();
-
-    if (!this.element.is(':visible')) {
-      return;
-    }
-
-    this.updated();
   },
 
   /**
@@ -904,9 +918,18 @@ Bar.prototype = {
    * @private
    */
   teardown() {
-    this.element.off(`updated.${COMPONENT_NAME}`);
-    $('body').off(`resize.${COMPONENT_NAME}`);
-    $('html').off(`themechanged.${COMPONENT_NAME}`);
+    const events = arr => `${arr.join(`.${this.namespace} `)}.${this.namespace}`;
+
+    if (this.element) {
+      this.element.find('.group .series-group .bar')
+        .off(events(['mouseenter', 'mouseleave', 'click', 'contextmenu']));
+
+      this.element.off(events(['updated', 'resize']));
+    }
+    $('body').off(`resize.${this.namespace}`);
+    $('html').off(`themechanged.${this.namespace}`);
+
+    delete this.namespace;
     return this;
   },
 
@@ -915,11 +938,13 @@ Bar.prototype = {
    * @returns {void}
    */
   destroy() {
-    this.element.empty().removeClass('bar-chart');
-    charts.removeTooltip();
     this.teardown();
-    $.removeData(this.element[0], COMPONENT_NAME);
-    $.removeData(this.element[0], 'chart');
+    charts.removeTooltip();
+    if (this.element) {
+      this.element.empty().removeClass('bar-chart');
+      $.removeData(this.element[0], COMPONENT_NAME);
+      $.removeData(this.element[0], 'chart');
+    }
   }
 };
 

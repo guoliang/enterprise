@@ -1,5 +1,6 @@
 import { utils } from '../../utils/utils';
 import { DOM } from '../../utils/dom';
+import { Environment as env } from '../../utils/environment';
 
 // Component Name
 const COMPONENT_NAME = 'place';
@@ -274,10 +275,25 @@ Place.prototype = {
     }
 
     const self = this;
-    const parentRect = DOM.getDimensions(placementObj.parent[0]);
-    const elRect = DOM.getDimensions(this.element[0]);
     const container = this.getContainer(placementObj);
     const containerIsBody = container.length && container[0] === document.body;
+    let containerRect;
+
+    // If this tooltip is confined to a container, in some situtions we need to make sure
+    // the placed element is within the browser viewport before we attempt to get its
+    // dimensions. This simply puts the element within the viewport boundary beforehand
+    // for accurate measurements.
+    // See Github infor-design/enterprise#3119
+    if (env.rtl && container.length) {
+      containerRect = DOM.getDimensions(container[0]);
+      this.element.css({
+        left: `${containerRect.left}px`,
+        top: `${containerRect.right}px`
+      });
+    }
+
+    const parentRect = DOM.getDimensions(placementObj.parent[0]);
+    const elRect = DOM.getDimensions(this.element[0]);
     // NOTE: Usage of $(window) instead of $('body') is deliberate here - http://stackoverflow.com/a/17776759/4024149.
     // Firefox $('body').scrollTop() will always return zero.
     const scrollX = containerIsBody ? $(window).scrollLeft() : container.scrollLeft();
@@ -408,6 +424,7 @@ Place.prototype = {
     });
 
     // Trigger an event to notify placement has ended
+    placementObj.element = this.element;
     this.element.trigger('afterplace', [placementObj]);
 
     return placementObj;
@@ -462,6 +479,7 @@ Place.prototype = {
    */
   handlePlacementCallback(placementObj) {
     const cb = placementObj.callback || this.settings.callback;
+    placementObj.element = this.element;
 
     if (cb && typeof cb === 'function') {
       placementObj = cb(placementObj);
@@ -781,20 +799,27 @@ Place.prototype = {
 
   // If element height/width is greater than window height/width, shrink to fit
   shrink(placementObj, dimension) {
+    let dX = 0;
+    let dY = 0;
+    const useX = dimension === undefined || dimension === null || dimension === 'x';
+    const useY = dimension === undefined || dimension === null || dimension === 'y';
+
     const accountForScrolling = this.accountForScrolling(placementObj);
+    const menuRect = DOM.getDimensions(this.element[0]);
     const containerBleed = this.settings.bleedFromContainer;
     const container = this.getContainer(placementObj);
     const containerRect = container ? container[0].getBoundingClientRect() : {};
     const containerIsBody = container.length && container[0] === document.body;
-    const rect = this.element[0].getBoundingClientRect();
-    const useX = dimension === undefined || dimension === null || dimension === 'x';
-    const useY = dimension === undefined || dimension === null || dimension === 'y';
+    const coordinateShrink = placementObj.parent === null;
+
     // NOTE: Usage of $(window) instead of $('body') is deliberate here - http://stackoverflow.com/a/17776759/4024149.
     // Firefox $('body').scrollTop() will always return zero.
     const scrollX = containerIsBody ? $(window).scrollLeft() : container.scrollLeft();
     const scrollY = containerIsBody ? $(window).scrollTop() : container.scrollTop();
     const windowH = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
     const windowW = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+
+    // Figure out the viewport boundaries
     const leftViewportEdge = (accountForScrolling ? scrollX : 0) +
       (containerBleed ? 0 : containerRect.left) + placementObj.containerOffsetX;
     const topViewportEdge = (accountForScrolling ? scrollY : 0) +
@@ -803,54 +828,47 @@ Place.prototype = {
       (containerBleed ? windowW : containerRect.right) - placementObj.containerOffsetX;
     const bottomViewportEdge = (accountForScrolling ? scrollY : 0) +
       (containerBleed ? windowH : containerRect.bottom) - placementObj.containerOffsetY;
-    let d;
+
+    // If shrinking a coordinate-placed object (no parent), the full range between top/bottom
+    // and left/right boundaries will be used.
+    // If shrinking a parent-placed object, the distance between the parent and whichever
+    // boundary is further will be used.
+    let availableX = rightViewportEdge - leftViewportEdge;
+    let availableY = bottomViewportEdge - topViewportEdge;
+    if (!coordinateShrink) {
+      const parentRect = DOM.getDimensions(placementObj.parent[0]);
+      const availableTop = parentRect.top - topViewportEdge;
+      const availableBottom = bottomViewportEdge - parentRect.bottom;
+      const availableLeft = parentRect.left - leftViewportEdge;
+      const availableRight = rightViewportEdge - parentRect.right;
+      availableX = availableLeft > availableRight ? availableLeft : availableRight;
+      availableY = availableTop > availableBottom ? availableTop : availableBottom;
+    }
 
     // Shrink in each direction.
     // The value of the "containerOffsets" is "factored out" of each calculation,
     // if for some reason the element is larger than the viewport/container space allowed.
-    placementObj.nudges = placementObj.nudges || {};
-
     if (useX) {
-      // Left
-      if (rect.left < leftViewportEdge) {
-        d = Math.abs(leftViewportEdge - rect.left);
-        if (rect.right >= rightViewportEdge) {
-          d -= placementObj.containerOffsetX;
-        }
-        placementObj.width = rect.width - d;
-        placementObj.setCoordinate('x', placementObj.x + d);
-        placementObj.nudges.x += d;
+      if (menuRect.width > availableX) {
+        placementObj.width = availableX;
       }
 
-      // Right
-      if (rect.right > rightViewportEdge) {
-        d = Math.abs(rect.right - rightViewportEdge);
-        if (rect.left <= leftViewportEdge) {
-          d -= placementObj.containerOffsetX;
-        }
-        placementObj.width = rect.width - d;
+      // Shift back into the viewport if off the Left
+      if (menuRect.left < leftViewportEdge) {
+        dX = leftViewportEdge - menuRect.left;
+        placementObj.setCoordinate('x', placementObj.x + dX);
       }
     }
 
     if (useY) {
-      // Top
-      if (rect.top < topViewportEdge) {
-        d = Math.abs(topViewportEdge - rect.top);
-        if (rect.bottom >= bottomViewportEdge) {
-          d -= placementObj.containerOffsetY;
-        }
-        placementObj.height = rect.height - d;
-        placementObj.setCoordinate('y', placementObj.y + d);
-        placementObj.nudges.y += d;
+      if (menuRect.height > availableY) {
+        placementObj.height = availableY;
       }
 
-      // Bottom
-      if (rect.bottom > bottomViewportEdge) {
-        d = Math.abs(rect.bottom - bottomViewportEdge);
-        if (rect.top <= topViewportEdge) {
-          d -= placementObj.containerOffsetY;
-        }
-        placementObj.height = rect.height - d;
+      // Shift back into the viewport if off the Top
+      if (menuRect.top < topViewportEdge) {
+        dY = topViewportEdge - menuRect.top;
+        placementObj.setCoordinate('y', placementObj.y + dY);
       }
     }
 
@@ -892,7 +910,6 @@ Place.prototype = {
     let target = placementObj.parent;
     const arrow = element.find('div.arrow');
     const dir = placementObj.placement;
-    const isXCoord = ['left', 'right'].indexOf(dir) > -1;
     let targetRect = {};
     const elementRect = element[0].getBoundingClientRect();
     let arrowRect = {};
@@ -905,15 +922,7 @@ Place.prototype = {
 
     arrow[0].removeAttribute('style');
 
-    // if (placementObj.attemptedFlips) { TJM Removed for pager bug. Seems to work.
     element.removeClass('top right bottom left').addClass(dir);
-    // }
-
-    // Flip the arrow if we're in RTL mode
-    if (this.isRTL && isXCoord) {
-      const opposite = dir === 'right' ? 'left' : 'right';
-      element.removeClass('right left').addClass(opposite);
-    }
 
     // Custom target for some scenarios
     if (target.is('.colorpicker')) {
@@ -930,6 +939,9 @@ Place.prototype = {
     }
     if (target.is('.colorpicker-editor-button')) {
       target = target.find('.trigger .icon');
+    }
+    if (target.is('.fontpicker')) {
+      target = target.find('.icon.icon-dropdown');
     }
 
     // reset if we borked the target

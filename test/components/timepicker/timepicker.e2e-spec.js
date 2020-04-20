@@ -26,7 +26,7 @@ describe('Timepicker example-index tests', () => {
       await element(by.css('.timepicker + .icon')).click();
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(timepickerSection, 'timepicker-open')).toBeLessThan(0.25);
+      expect(await browser.protractorImageComparison.checkElement(timepickerSection, 'timepicker-open')).toEqual(0);
     });
   }
 
@@ -159,6 +159,7 @@ describe('Timepicker with seconds example tests', () => {
     await dropdownEl.sendKeys(protractor.Key.ARROW_DOWN);
     await dropdownEl.sendKeys(protractor.Key.ARROW_DOWN);
     await dropdownEl.sendKeys(protractor.Key.SPACE);
+    await browser.driver.sleep(config.sleep);
 
     expect(await dropdownEl.getText()).toEqual('03');
     dropdownEl = await element(by.css(ddSelector('minutes')));
@@ -167,6 +168,7 @@ describe('Timepicker with seconds example tests', () => {
     await dropdownEl.sendKeys(protractor.Key.ARROW_DOWN);
     await dropdownEl.sendKeys(protractor.Key.ARROW_DOWN);
     await dropdownEl.sendKeys(protractor.Key.SPACE);
+    await browser.driver.sleep(config.sleep);
 
     expect(await dropdownEl.getText()).toEqual('10');
     dropdownEl = await element(by.css(ddSelector('seconds')));
@@ -176,6 +178,7 @@ describe('Timepicker with seconds example tests', () => {
     await dropdownEl.sendKeys(protractor.Key.ARROW_DOWN);
     await dropdownEl.sendKeys(protractor.Key.ARROW_DOWN);
     await dropdownEl.sendKeys(protractor.Key.SPACE);
+    await browser.driver.sleep(config.sleep);
 
     expect(await dropdownEl.getText()).toEqual('15');
     dropdownEl = await element(by.css(ddSelector('period')));
@@ -183,9 +186,11 @@ describe('Timepicker with seconds example tests', () => {
     await browser.driver.sleep(config.sleep);
     await dropdownEl.sendKeys(protractor.Key.ARROW_DOWN);
     await dropdownEl.sendKeys(protractor.Key.SPACE);
+    await browser.driver.sleep(config.sleep);
 
     expect(await dropdownEl.getText()).toEqual('PM');
     await element(by.css('.set-time')).click();
+    await browser.driver.sleep(config.sleep);
 
     expect(await timepickerEl.getAttribute('value')).toEqual('03:10:15 PM');
   });
@@ -325,5 +330,34 @@ describe('Timepicker Custom Validation Tests', () => {
 
     expect(await element.all(by.css('.message-text')).last().getText()).toEqual('Invalid Time');
     expect(await element.all(by.css('.message-text')).last(1).isPresent()).toBe(true);
+  });
+});
+
+describe('Timepicker specific locale/language tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/timepicker/test-specific-locale');
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('Should set time and lanuage independently', async () => {
+    let timepickerEl = await element(by.id('timepicker-1'));
+    await element(by.css('#timepicker-1 + .icon')).click();
+
+    expect(await element(by.css('.btn-modal-primary')).getText()).toEqual('Indstil tid');
+
+    await element(by.css('.set-time')).sendKeys(protractor.Key.SPACE);
+
+    expect(await timepickerEl.getAttribute('value')).toEqual('01.00');
+
+    timepickerEl = await element(by.id('timepicker-2'));
+    await element(by.css('#timepicker-2 + .icon')).click();
+
+    expect(await element(by.css('.btn-modal-primary')).getText()).toEqual('Ange tid');
+    await element(by.css('.set-time')).sendKeys(protractor.Key.SPACE);
+
+    expect(await timepickerEl.getAttribute('value')).toEqual('01:00');
   });
 });

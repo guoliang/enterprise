@@ -18,7 +18,8 @@ const TIMEPICKER_MODES = ['standard', 'range'];
 // Timepicker defaults
 const TIMEPICKER_DEFAULTS = function () {
   return {
-    locale: '',
+    locale: null,
+    language: null,
     timeFormat: undefined,
     minuteInterval: 5,
     secondInterval: 5,
@@ -35,6 +36,7 @@ const TIMEPICKER_DEFAULTS = function () {
  * @param {HTMLElement|jQuery[]} element the base element
  * @param {object} [settings] incoming settings
  * @param {string} [settings.locale] The name of the locale to use for this instance. If not set the current locale will be used.
+ * @param {string} [settings.language] The name of the language to use for this instance. If not set the current locale will be used or the passed locale will be used.
  * @param {string} [settings.timeFormat = 'h:mm a'] The time format, defaults to the current locales time format.
  * @param {number} [settings.minuteInterval = 5]  Integer from 1 to 60.  Multiples of this value
  *  are displayed as options in the minutes dropdown.
@@ -62,10 +64,7 @@ TimePicker.prototype = {
    * @returns {void}
    */
   init() {
-    this.setLocale();
-    if (!this.settings.locale) {
-      this.setCurrentCalendar().build();
-    }
+    this.setLocaleThenBuild();
   },
 
   /**
@@ -73,14 +72,17 @@ TimePicker.prototype = {
    * @private
    * @returns {void}
    */
-  setLocale() {
-    this.locale = Locale.currentLocale;
-    if (this.settings.locale) {
-      Locale.getLocale(this.settings.locale).done((locale) => {
-        this.locale = Locale.cultures[locale];
-        this.setCurrentCalendar();
-      });
-    }
+  setLocaleThenBuild() {
+    const languageDf = Locale.getLocale(this.settings.language);
+    const localeDf = Locale.getLocale(this.settings.locale);
+    $.when(localeDf, languageDf).done((locale, lang) => {
+      this.locale = Locale.cultures[locale] || Locale.currentLocale;
+      this.language = lang || this.settings.language || this.locale.language || null;
+      this.settings.language = this.language;
+      this.setCurrentCalendar();
+      this.build().handleEvents();
+    });
+    return this;
   },
 
   /**
@@ -89,11 +91,15 @@ TimePicker.prototype = {
    * @returns {object} The api object for chaining.
    */
   setCurrentCalendar() {
-    this.currentCalendar = Locale.calendar(this.locale.name, this.settings.calendarName);
+    this.currentCalendar = Locale.calendar(
+      this.locale.name,
+      this.settings.language,
+      this.settings.calendarName
+    );
     if (this.settings.timeFormat === undefined) {
       this.settings.timeFormat = this.currentCalendar.timeFormat || 'h:mm a';
     }
-    this.isRTL = this.locale.direction === 'right-to-left';
+    this.isRTL = (this.locale.direction || this.locale.data.direction) === 'right-to-left';
     this.build();
     return this;
   },
@@ -203,7 +209,7 @@ TimePicker.prototype = {
     // TODO: Confirm this with Accessibility Team
     this.label = $(`label[for="${this.element.attr('id')}"]`);
     this.label.find('.audible').remove();
-    this.label.append(`<span class="audible">${Locale.translate('UseArrow', { locale: this.locale.name })}</span>`);
+    this.label.append(`<span class="audible">${Locale.translate('UseArrow', { locale: this.locale.name, language: this.language })}</span>`);
     return this;
   },
 
@@ -268,7 +274,12 @@ TimePicker.prototype = {
    * @returns {boolean} whether or not the time format is 24-hour
    */
   is24HourFormat(value) {
-    if (!value) { value = this.settings.timeFormat; }
+    if (!value) {
+      value = this.settings.timeFormat;
+    }
+    if (!value) {
+      return false;
+    }
     return (value.match('H') || []).length > 0;
   },
 
@@ -425,7 +436,7 @@ TimePicker.prototype = {
       self.hourSelect.append($(`<option${selected}>${self.hourText(hourCounter)}</option>`));
       hourCounter++;
     }
-    timeParts.append($(`<label for="${this.hoursId}" class="audible">${Locale.translate('Hours', { locale: this.locale.name })}</label>`));
+    timeParts.append($(`<label for="${this.hoursId}" class="audible">${Locale.translate('Hours', { locale: this.locale.name, language: this.language })}</label>`));
     timeParts.append(this.hourSelect);
     timeParts.append($(`<span class="label colons">${timeSeparator}</span>`));
 
@@ -450,7 +461,7 @@ TimePicker.prototype = {
       this.minuteSelect.prepend($(`<option selected>${self.initValues.minutes}</option>`));
     }
 
-    timeParts.append($(`<label for="${this.minutesId}" class="audible">${Locale.translate('Minutes', { locale: this.locale.name })}</label>`));
+    timeParts.append($(`<label for="${this.minutesId}" class="audible">${Locale.translate('Minutes', { locale: this.locale.name, language: this.language })}</label>`));
     timeParts.append(this.minuteSelect);
 
     // Seconds Picker
@@ -476,7 +487,7 @@ TimePicker.prototype = {
       }
 
       timeParts.append($(`<span class="label colons">${timeSeparator}</span>`));
-      timeParts.append($(`<label for="${this.secondsId}" class="audible">${Locale.translate('Seconds', { locale: this.locale.name })}</label>`));
+      timeParts.append($(`<label for="${this.secondsId}" class="audible">${Locale.translate('Seconds', { locale: this.locale.name, language: this.language })}</label>`));
       timeParts.append(this.secondSelect);
     }
 
@@ -486,19 +497,16 @@ TimePicker.prototype = {
       const localeDays = this.currentCalendar.dayPeriods;
       let localeCount = 0;
       const regexDay = new RegExp(self.initValues.period, 'i');
-      let realDayValue = 'AM'; // AM
-
       while (localeCount < 2) {
-        realDayValue = localeCount === 0 ? 'AM' : 'PM'; // ? AM : PM
         selected = '';
         if (regexDay.test(localeDays[localeCount])) {
           selected = ' selected';
         }
-        this.periodSelect.append($(`<option value="${realDayValue}"${selected}>${localeDays[localeCount]}</option>`));
+        this.periodSelect.append($(`<option value="${localeDays[localeCount]}"${selected}>${localeDays[localeCount]}</option>`));
 
         localeCount++;
       }
-      timeParts.append($(`<label for="${this.periodId}" class="audible">${Locale.translate('TimePeriod', { locale: this.locale.name })}</label>`));
+      timeParts.append($(`<label for="${this.periodId}" class="audible">${Locale.translate('TimePeriod', { locale: this.locale.name, language: this.language })}</label>`));
       timeParts.append(this.periodSelect);
     }
 
@@ -507,7 +515,7 @@ TimePicker.prototype = {
       // self.afterShow(this.settings.parentElement);
       self.popup = this.settings.parentElement.find('.timepicker-popup-content').addClass('timepicker-popup').attr('id', 'timepicker-popup');
     } else {
-      popupContent.append(`<div class="modal-buttonset"><button type="button" class="btn-modal-primary set-time">${Locale.translate('SetTime', { locale: this.locale.name })}</button></div>`);
+      popupContent.append(`<div class="modal-buttonset"><button type="button" class="btn-modal-primary set-time">${Locale.translate('SetTime', { locale: this.locale.name, language: this.language })}</button></div>`);
 
       let placementParent = this.element;
       let placementParentXAlignment = (this.isRTL ? 'right' : 'left');
@@ -716,11 +724,21 @@ TimePicker.prototype = {
     const timeparts = {};
 
     val = val.replace(/[T\s:.-]/g, sep).replace(/z/i, '');
+    val = val.replace('午', `午${sep}`);
     parts = val.split(sep);
+
+    const aLoc = this.currentCalendar.timeFormat.toLowerCase().indexOf('a');
+    const isAmFirst = aLoc !== -1 && (aLoc <
+      this.currentCalendar.timeFormat.toLowerCase().indexOf('h'));
+
+    // If am is before time move it in the array to last
+    if (!this.is24HourFormat() && isAmFirst) {
+      parts = [parts[1], parts[2], parts[0]];
+    }
 
     // Check the last element in the array for a time period, and add it as an array
     // member if necessary
-    if (!this.is24HourFormat()) {
+    if (!this.is24HourFormat() && !isAmFirst) {
       endParts = parts[parts.length - 1].split(' ');
       parts.pop();
       parts = parts.concat(endParts);
@@ -807,6 +825,44 @@ TimePicker.prototype = {
     }
 
     return timeparts;
+  },
+
+  getTimeFromField2(value) {
+    function addLeadingZero(thisValue) {
+      if (!thisValue || isNaN(thisValue)) {
+        return '00';
+      }
+      thisValue = parseInt(thisValue, 10);
+      thisValue = thisValue < 10 ? `0${thisValue}` : thisValue;
+      return thisValue;
+    }
+
+    const self = this;
+    const formatString = self.hasSeconds() ?
+      this.currentCalendar.dateFormat.timestamp :
+      this.currentCalendar.dateFormat.hour;
+    const type = self.hasSeconds() ? 'timestamp' : 'hour';
+
+    const tempDate = Locale.parseDate(value || this.element.val(), { date: type });
+    const defaultHours = '1';
+    let hours = (tempDate ? tempDate.getHours() : defaultHours).toString();
+    const ampm = (hours >= 12 ? this.translateDayPeriod('PM') : this.translateDayPeriod('AM')).toString();
+    if (!this.is24HourFormat() && hours > 12) {
+      hours = (parseInt(hours, 10) - 12).toString();
+    }
+    if (!this.is24HourFormat() && hours === '0') {
+      hours = '12';
+    }
+    const period = formatString.indexOf('a') > -1 ? ampm : undefined;
+    const minutes = tempDate ? tempDate.getMinutes() : '00';
+    const seconds = tempDate ? tempDate.getSeconds() : '00';
+
+    return {
+      hours: addLeadingZero(hours),
+      minutes: addLeadingZero(minutes),
+      seconds: addLeadingZero(seconds),
+      period
+    };
   },
 
   /**

@@ -125,7 +125,21 @@ const editors = {
     this.originalValue = value;
 
     this.init = function () {
-      this.input = $('<textarea class="textarea"></textarea>').appendTo(container);
+      container.addClass('datagrid-textarea-cell-wrapper');
+      const autogrowStartHeight = container.get(0).scrollHeight;
+      const style = column.editorOptions && column.editorOptions.minHeight ?
+        `style="min-height: ${column.editorOptions.minHeight}px"` : '';
+      this.input = $(`<textarea ${style} class="textarea">${this.originalValue}</textarea>`).appendTo(container);
+      const editorOptions = column.editorOptions ? column.editorOptions : {};
+      // disable the characterCounter by default
+      if (!('characterCounter' in editorOptions)) {
+        editorOptions.characterCounter = false;
+      }
+      this.api = this.input.data('autogrow-start-height', autogrowStartHeight).textarea(column.editorOptions).data('textarea');
+
+      this.input.on('click.textareaeditor', (e) => {
+        e.stopPropagation();
+      });
 
       if (column.maxLength) {
         this.input.attr('maxlength', column.maxLength);
@@ -145,11 +159,13 @@ const editors = {
     };
 
     this.focus = function () {
-      this.input.focus();
+      this.input.focus().select();
     };
 
     this.destroy = function () {
+      container.removeClass('datagrid-textarea-cell-wrapper');
       setTimeout(() => {
+        this.input.off('click.textareaeditor');
         this.input.remove();
       }, 0);
     };
@@ -739,6 +755,7 @@ const editors = {
       );
 
       this.input.lookup(column.editorOptions);
+      container.find('span.trigger').attr('tabindex', '-1');
 
       // Append the Lookup's clickArguments with some row/col meta-data
       const api = this.input.data('lookup');
@@ -755,11 +772,7 @@ const editors = {
     };
 
     this.val = function (v) {
-      let fieldValue = this.input.val();
-      if (fieldValue && fieldValue.indexOf('|') > -1) {
-        fieldValue = fieldValue.substr(0, fieldValue.indexOf('|'));
-      }
-      return v ? this.input.val(v) : fieldValue;
+      return v ? this.input.val(v) : this.input.val();
     };
 
     this.focus = function () {
@@ -944,7 +957,7 @@ const editors = {
       }
 
       this.input.prop('checked', isChecked);
-      this.input.find('use').attr('xlink:href', isChecked ? '#icon-star-filled' : '#icon-star-outlined');
+      this.input.find('use').attr('href', isChecked ? '#icon-star-filled' : '#icon-star-outlined');
     };
 
     this.focus = function () {

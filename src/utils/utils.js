@@ -615,6 +615,34 @@ DOM.convertToHTMLElement = function convertToHTMLElement(item) {
 };
 
 /**
+ * Returns a list of all focusable elements contained within the current element.
+ * Somewhat lifted from https://gomakethings.com/how-to-get-the-first-and-last-focusable-elements-in-the-dom/
+ * @param {HTMLElement} el the element to search.
+ * @returns {array} containing the focusable elements.
+ */
+DOM.focusableElems = function focusableElems(el) {
+  const focusableElemSelector = [
+    'button',
+    '[href]',
+    'input',
+    'select',
+    'textarea',
+    '[focusable]:not([focusable="false"])',
+    '[tabindex]:not([tabindex="-1"])',
+    '[contenteditable]',
+    'iframe'
+  ];
+  const elems = el.querySelectorAll(focusableElemSelector.join(', '));
+  const arrElems = utils.getArrayFromList(elems);
+  return arrElems.filter((elem) => {
+    if (elem.tagName.toLowerCase() === 'use') {
+      return false;
+    }
+    return true;
+  });
+};
+
+/**
  * Object deep copy.
  * For now, alias jQuery.extend
  * Eventually we'll replace this with a non-jQuery extend method.
@@ -854,8 +882,15 @@ utils.isNumber = function isNumber(value) {
  * @param {HTMLElement} element the element to get selection
  * @param {number} startPos starting position of the text caret
  * @param {number} endPos ending position of the text caret
+ * @returns {void}
  */
 utils.safeSetSelection = function safeSetSelection(element, startPos, endPos) {
+  // If this text field doesn't support text caret selection, return out
+  const compatibleTypes = ['text', 'password', 'search', 'url', 'week', 'month'];
+  if (!(element instanceof HTMLInputElement) || compatibleTypes.indexOf(element.type) === -1) {
+    return;
+  }
+
   if (startPos && endPos === undefined) {
     endPos = startPos;
   }
@@ -1063,6 +1098,28 @@ utils.getScrollbarWidth = function () {
   outer.parentNode.removeChild(outer);
 
   return widthNoScroll - widthWithScroll;
+};
+
+/**
+ * Create deep copy for given array or object.
+ * @param  {array|object} arrayOrObject The array or object to be copied.
+ * @returns {array|object} The copied array or object.
+ */
+utils.deepCopy = function (arrayOrObject) {
+  const copy = (input) => {
+    if (typeof input !== 'object' || input === null) {
+      return input; // Return the value if input is not an object
+    }
+    // Create an array or object to hold the values
+    const output = Array.isArray(input) ? [] : {};
+    Object.keys(input).forEach((key) => {
+      const value = input[key];
+      // Recursively (deep) copy for nested objects, including arrays
+      output[key] = (typeof value === 'object' && value !== null) ? copy(value) : value;
+    });
+    return output;
+  };
+  return copy(arrayOrObject);
 };
 
 export { utils, math };

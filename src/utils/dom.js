@@ -69,12 +69,19 @@ DOM.addClass = function addClass(el, ...className) {
   if (!el) {
     return;
   }
+  let classStr = '';
   for (let i = 0; i < className.length; i++) {
     if (el.classList) {
       el.classList.add(className[i]);
     } else if (!DOM.hasClass(el, [i])) {
-      el.className += ` ${className[i]}`;
+      if (classStr.length) {
+        classStr += ' ';
+      }
+      classStr += className[i];
     }
+  }
+  if (classStr.length) {
+    $(el).addClass(classStr);
   }
 };
 
@@ -89,19 +96,19 @@ DOM.removeClass = function removeClass(el, ...className) {
     return;
   }
 
+  let classStr = '';
   for (let i = 0; i < className.length; i++) {
     if (el.classList) {
       el.classList.remove(className[i]);
-    } else {
-      let newClassName = '';
-      const classes = el.className.split(' ');
-      for (let j = 0; j < classes.length; j++) {
-        if (classes[j] !== className[j]) {
-          newClassName += `${classes[i]} `;
-        }
+    } else if (!DOM.hasClass(el, [i])) {
+      if (classStr.length) {
+        classStr += ' ';
       }
-      this.className = newClassName;
+      classStr += className[i];
     }
+  }
+  if (classStr.length) {
+    $(el).removeClass(classStr);
   }
 };
 
@@ -274,6 +281,60 @@ DOM.parents = function parents(el, selector, closest) {
     return parentEls[0]; // can be `undefined`
   }
   return parentEls;
+};
+
+/**
+ * Get the next sibling with an optional css selector.
+ * @param {HTMLElement/SVGElement} el The element being checked
+ * @param {string} selector a valid CSS selector
+ * @returns {HTMLElement} The next sibling
+ */
+DOM.getNextSibling = function getNextSibling(el, selector) {
+  if (el instanceof $ && el.length) {
+    el = el[0];
+  }
+
+  // Get the next sibling element
+  let sibling = el.nextElementSibling;
+
+  // If there's no selector, return the first sibling
+  if (!selector) return sibling;
+
+  // If the sibling matches our selector, use it
+  // If not, jump to the next sibling and continue the loop
+  while (sibling) {
+    if (sibling.matches(selector)) return sibling;
+    sibling = sibling.nextElementSibling;
+  }
+
+  return undefined;
+};
+
+/**
+ * Get the next previous with an optional css selector.
+ * @param {HTMLElement/SVGElement} el The element being checked
+ * @param {string} selector a valid CSS selector
+ * @returns {HTMLElement} The previous sibling
+ */
+DOM.getPreviousSibling = function getPreviousSibling(el, selector) {
+  if (el instanceof $ && el.length) {
+    el = el[0];
+  }
+
+  // Get the previous sibling element
+  let sibling = el.previousElementSibling;
+
+  // If there's no selector, return the first sibling
+  if (!selector) return sibling;
+
+  // If the sibling matches our selector, use it
+  // If not, jump to the previous sibling and continue the loop
+  while (sibling) {
+    if (sibling.matches(selector)) return sibling;
+    sibling = sibling.previousElementSibling;
+  }
+
+  return undefined;
 };
 
 export { DOM };

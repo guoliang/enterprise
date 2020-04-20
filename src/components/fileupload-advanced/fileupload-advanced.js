@@ -70,6 +70,7 @@ FileUploadAdvanced.prototype = {
   init() {
     this.build();
     this.handleEvents();
+    return this;
   },
 
   /**
@@ -275,7 +276,8 @@ FileUploadAdvanced.prototype = {
       * @property {object} file - file to set the status
       */
       this.element.triggerHandler('beforecreatestatus', [files[i]]);
-      /* global FormData */
+
+      // use FormData API
       const fd = new FormData();
       fd.append(`${fileName}[]`, files[i]);
 
@@ -570,6 +572,7 @@ FileUploadAdvanced.prototype = {
     this.dropArea.off('dragenter.fileuploadadvanced dragover.fileuploadadvanced drop.fileuploadadvanced');
     $(document).off('dragenter.fileuploadadvanced dragover.fileuploadadvanced drop.fileuploadadvanced');
     $('.action', this.element).off('click.fileuploadadvanced');
+    return this;
   },
 
   /**

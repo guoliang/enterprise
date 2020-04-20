@@ -20,6 +20,10 @@ module.exports = {
       addQuery = '';
       theme = `&${theme}`;
     }
+    if (url.indexOf('?theme') > -1) {
+      addQuery = '';
+      theme = '';
+    }
 
     const pageurl = `${browser.baseUrl + url}${addQuery}${theme}`;
     await browser.waitForAngularEnabled(false);
@@ -30,8 +34,7 @@ module.exports = {
       await browser.manage().logs().get('browser').then((browserLog) => {
         let errors = 0;
         for (let i = 0; i < browserLog.length; i++) {
-          const type = browserLog[i].level.name;
-          logger(type, browserLog[i].message);
+          logger('error', browserLog[i].message);
           errors++;
         }
         expect(errors).toEqual(0);
@@ -81,8 +84,8 @@ module.exports = {
     logger('error', msg);
   },
   rgb2hex: (str) => {
-    str = str.match(/^rgba?[\s+]?\([\s+]?(\d+)[\s+]?,[\s+]?(\d+)[\s+]?,[\s+]?(\d+)[\s+]?/i);
-    return (str && str.length === 4) ? `#${(`0${parseInt(str[1], 10).toString(16)}`).slice(-2)}${(`0${parseInt(str[2], 10).toString(16)}`).slice(-2)}${(`0${parseInt(str[3], 10).toString(16)}`).slice(-2)}` : '';
+    const newStr = str.match(/^rgba?[\s+]?\([\s+]?(\d+)[\s+]?,[\s+]?(\d+)[\s+]?,[\s+]?(\d+)[\s+]?/i);
+    return (newStr && newStr.length === 4) ? `#${(`0${parseInt(newStr[1], 10).toString(16)}`).slice(-2)}${(`0${parseInt(newStr[2], 10).toString(16)}`).slice(-2)}${(`0${parseInt(newStr[3], 10).toString(16)}`).slice(-2)}` : '';
   },
   waitsFor: async (condition, el) => {
     if (condition && el && protractor && browser && browser.driver) {

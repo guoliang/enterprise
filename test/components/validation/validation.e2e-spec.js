@@ -212,6 +212,22 @@ describe('Validation alert on tab', () => {
   });
 });
 
+describe('Validation alert on tab with add message', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/validation/test-error-on-tab-with-addmessage');
+  });
+
+  it('Should render icon on tab on add message', async () => {
+    expect(await element(by.css('.tab .icon-error')).isPresent()).toBe(false);
+    await element(by.id('show-error')).click();
+
+    expect(await element(by.css('.tab .icon-error')).isPresent()).toBe(true);
+    await element(by.id('show-error')).click();
+
+    expect(await element(by.css('.tab .icon-error')).isPresent()).toBe(false);
+  });
+});
+
 describe('Validation on date year', () => {
   beforeEach(async () => {
     await utils.setPage('/components/validation/test-invalid-date-events');
@@ -281,6 +297,8 @@ describe('Validation Legacy Tooltip', () => {
 describe('Validation on Accordion', () => {
   beforeEach(async () => {
     await utils.setPage('/components/validation/test-on-accordion');
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(await element(by.css('.alternate .accordion-header'))), config.waitsFor);
   });
 
   it('Should validate on an accordion', async () => {
@@ -291,7 +309,7 @@ describe('Validation on Accordion', () => {
 
     const nameEl = await element(by.id('last-name2'));
     await browser.driver
-      .wait(protractor.ExpectedConditions.presenceOf(nameEl), config.waitsFor);
+      .wait(protractor.ExpectedConditions.visibilityOf(nameEl), config.waitsFor);
 
     await nameEl.clear();
     await nameEl.sendKeys(protractor.Key.TAB);
@@ -495,6 +513,60 @@ describe('Validation input tests', () => {
   });
 });
 
+describe('Validation mask tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/mask/example-index');
+  });
+
+  it('Should be able to validate 12 hour time', async () => {
+    const timeField = await element(by.id('time-input'));
+
+    await timeField.sendKeys(protractor.Key.TAB);
+    await browser.driver.sleep(config.sleep);
+
+    expect(await element(by.css('.error-message')).isPresent()).toBe(false);
+    await timeField.clear();
+    await timeField.sendKeys('12:01 AM');
+    await timeField.sendKeys(protractor.Key.TAB);
+    await browser.driver.sleep(config.sleep);
+
+    expect(await element(by.css('.error-message')).isPresent()).toBe(false);
+    await timeField.clear();
+    await timeField.sendKeys('99:99');
+    await timeField.sendKeys(protractor.Key.TAB);
+    await browser.driver.sleep(config.sleep);
+
+    expect(await element(by.css('.error-message')).isPresent()).toBe(true);
+    const messageList = element.all(by.css('.message-text'));
+
+    expect(await messageList.get(0).getText()).toBe('Invalid Time');
+  });
+
+  it('Should be able to validate 24 hour time', async () => {
+    const timeField = await element(by.id('time-input-24h'));
+
+    await timeField.sendKeys(protractor.Key.TAB);
+    await browser.driver.sleep(config.sleep);
+
+    expect(await element(by.css('.error-message')).isPresent()).toBe(false);
+    await timeField.clear();
+    await timeField.sendKeys('13:01');
+    await timeField.sendKeys(protractor.Key.TAB);
+    await browser.driver.sleep(config.sleep);
+
+    expect(await element(by.css('.error-message')).isPresent()).toBe(false);
+    await timeField.clear();
+    await timeField.sendKeys('99:99');
+    await timeField.sendKeys(protractor.Key.TAB);
+    await browser.driver.sleep(config.sleep);
+
+    expect(await element(by.css('.error-message')).isPresent()).toBe(true);
+    const messageList = element.all(by.css('.message-text'));
+
+    expect(await messageList.get(0).getText()).toBe('Invalid Time');
+  });
+});
+
 describe('Validation resetForm tests', () => {
   beforeEach(async () => {
     await utils.setPage('/components/validation/test-resetform');
@@ -541,6 +613,21 @@ describe('Validation narrow field', () => {
 
     expect(await errorIcon.getAttribute('class')).toContain('lower-opacity');
     expect(await errorIcon.getCssValue('opacity')).toBeLessThan(1);
+  });
+});
+
+describe('Validation just error class tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/validation/test-just-error-class');
+  });
+
+  it('Should be able to remove a manually added error class', async () => {
+    const field = await element(by.id('test-input'));
+
+    expect(await field.getAttribute('class')).toContain('error');
+    await await element(by.id('clear')).click();
+
+    expect(await field.getAttribute('class')).not.toContain('error');
   });
 });
 

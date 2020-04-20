@@ -6,3 +6,23 @@
     line-height: normal;
   }
 }
+
+.modal-content {
+  > .btn-close {
+    right: 11px;
+    top: 15px;
+  }
+}
+
+.modal .field.editor-container {
+  max-width: 810px;
+}
+
+html[dir='rtl'] {
+  .modal-content {
+    > .btn-close {
+      left: 11px;
+      right: auto;
+    }
+  }
+}

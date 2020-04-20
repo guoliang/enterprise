@@ -1,5 +1,7 @@
 import * as debug from '../../utils/debug';
 import { utils } from '../../utils/utils';
+import { theme } from '../theme/theme';
+
 import { Locale } from '../locale/locale';
 import { Validation } from './validation';
 
@@ -167,7 +169,7 @@ Validator.prototype = {
     });
 
     // Link on to the current object and perform validation.
-    this.inputs.filter('input, textarea, div').filter(attribs).not('input[type=checkbox], input[type=file]').each(function () {
+    this.inputs.filter('input, textarea, div').filter(attribs).not('input[type=file]').each(function () {
       const field = $(this);
       const eventAttr = field.attr('data-validation-events');
       const events = self.extractEvents(eventAttr || 'blur.validate change.validate keyup.validate');
@@ -234,7 +236,6 @@ Validator.prototype = {
         const thisField = $(this);
         const tooltip = thisField.data('tooltip');
 
-        thisField.next('.dropdown-wrapper').next('.error-message').hide();
         if (tooltip && document.activeElement === thisField.data('dropdown').searchInput[0]) {
           tooltip.hide();
         }
@@ -256,7 +257,6 @@ Validator.prototype = {
             .find('.icon-error').data('tooltip');
         }
 
-        thisField.next('.dropdown-wrapper').next('.error-message').show();
         if (tooltip && document.activeElement !== thisField.data('dropdown').searchInput[0]) {
           tooltip.show();
         }
@@ -422,13 +422,23 @@ Validator.prototype = {
    * @returns {void}
    */
   setIconOnParent(field, type) {
-    const errorIcon = $.createIcon({ classes: [`icon-${type}`], icon: type });
+    const errorIcon = $.createIcon({ classes: [`icon-${type}`], icon: `${type}-alert` });
     const parent = field.closest('.tab-panel, .expandable-pane');
+    const flexRow = field.closest('.row.flex-align-bottom');
     let iconTarget = parent.attr('id');
     let parentContainer = field.closest('.tab-container, .tab-panel-container, .expandable-area');
     let iconContainer;
     let dropdown;
     let dropdownParent;
+
+    // Flex Row
+    if (flexRow && flexRow.length) {
+      if ($(`.${type}`, flexRow).length) {
+        flexRow.addClass('has-messages');
+      } else {
+        flexRow.removeClass('has-messages');
+      }
+    }
 
     // Tabs
     if (parentContainer.is('.tab-panel-container')) {
@@ -896,6 +906,9 @@ Validator.prototype = {
     rule.icon = rule.icon || validationType.icon;
 
     let markup;
+    const icon = theme.currentTheme.id && theme.currentTheme.id.indexOf('uplift') > -1 ?
+      `${validationType.type}-alert` : `${validationType.type}`;
+
     if (rule.type === 'icon') {
       markup = '' +
         `<div class="custom-icon-message" data-rule-id="${rule.id || rule.message}">
@@ -908,7 +921,7 @@ Validator.prototype = {
     } else {
       markup = '' +
         `<div class="${validationType.type}-message" data-rule-id="${rule.id || rule.message}">
-          ${$.createIcon({ classes: [`icon-${validationType.type}`], icon: validationType.type })}
+          ${$.createIcon({ classes: [`icon-${validationType.type}`], icon })}
           <pre class="audible">
             ${Locale.translate(validationType.titleMessageID)}
           </pre>
@@ -1129,6 +1142,7 @@ Validator.prototype = {
     if (settings) {
       this.settings = utils.mergeSettings(this.element[0], settings, this.settings);
     }
+    this.init();
   }
 
 };

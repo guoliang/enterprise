@@ -325,9 +325,42 @@ describe('Multiselect typeahead-reloading tests', () => {
 describe('Multiselect placeholder tests', () => {
   beforeEach(async () => {
     await utils.setPage('/components/multiselect/example-placeholder');
+
+    const multiselectEl = await element(by.css('select.multiselect + .dropdown-wrapper div.dropdown'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(multiselectEl), config.waitsFor);
   });
 
   it('Show a placeholder', async () => {
-    expect(await element.all(by.css('[data-placeholder-text]')).first().isDisplayed()).toBeTruthy();
+    const selector = 'select.multiselect + .dropdown-wrapper div.dropdown [data-placeholder-text]';
+    const placeholderEl = await element(by.css(selector));
+
+    expect(await element.all(by.css(selector)).count()).toEqual(1);
+    expect(await placeholderEl.isDisplayed()).toBeTruthy();
+    expect(await placeholderEl.getAttribute('data-placeholder-text')).toEqual('Select a State');
+  });
+});
+
+describe('Multiselect with Tags tests', () => {
+  it('standard example should not visually regress', async () => {
+    await utils.setPage('/components/multiselect/example-index');
+
+    const multiselectStandardEl = await element(by.css('#multi-optgroup-tagged + .dropdown-wrapper div.dropdown'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(multiselectStandardEl), config.waitsFor);
+    await browser.driver.sleep(config.sleepShort);
+
+    expect(await browser.protractorImageComparison.checkElement(multiselectStandardEl, 'multiselect-tags-standard')).toEqual(0);
+  });
+
+  it('disabled example should not visually regress', async () => {
+    await utils.setPage('/components/multiselect/example-index');
+
+    const multiselectDisabledEl = await element(by.css('#multi-disabled-tagged + .dropdown-wrapper div.dropdown'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(multiselectDisabledEl), config.waitsFor);
+    await browser.driver.sleep(config.sleepShort);
+
+    expect(await browser.protractorImageComparison.checkElement(multiselectDisabledEl, 'multiselect-tags-disabled')).toEqual(0);
   });
 });

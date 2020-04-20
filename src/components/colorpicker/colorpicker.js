@@ -23,6 +23,7 @@ const COMPONENT_NAME = 'colorpicker';
  * @param {boolean} [settings.colorOnly=false] If true the field will be shrunk to only show the color portion.
  * @param {boolean} [settings.clearable=true] If true will add clearable option.
  * @param {string} [settings.clearableText] The text to show in tooltip.
+ * @param {object} [settings.popupmenuSettings] optional Popupmenu settings that will supersede the defaults.
  */
 const COLORPICKER_DEFAULTS = {
   // Theme key: MUST match with theme file name (ie: [filename: 'light-theme.css' -> 'light-theme'])
@@ -111,7 +112,7 @@ const COLORPICKER_DEFAULTS = {
     { label: 'Azure', number: '09', value: '134D71' },
     { label: 'Azure', number: '08', value: '1D5F8A' },
     { label: 'Azure', number: '07', value: '2876A8' },
-    { label: 'Azure', number: '06', value: '368AC0' },
+    { label: 'Azure', number: '06', value: '2578A9' },
     { label: 'Azure', number: '05', value: '4EA0D1' },
     { label: 'Azure', number: '04', value: '69B5DD' },
     { label: 'Azure', number: '03', value: '8DC9E6' },
@@ -126,6 +127,7 @@ const COLORPICKER_DEFAULTS = {
   colorOnly: false,
   clearable: true,
   clearableText: null,
+  popupmenuSettings: {}
 };
 
 function ColorPicker(element, settings) {
@@ -228,6 +230,7 @@ ColorPicker.prototype = {
       this.element.parent().addClass('color-only');
     }
 
+    this.element.attr('autocomplete', 'off');
     this.addAria();
   },
 
@@ -285,7 +288,7 @@ ColorPicker.prototype = {
     if (this.element[0].style && this.element[0].style.width) {
       const w = parseInt(this.element[0].style.width, 10);
       this.container.css({ width: w });
-      this.element.css({ width: ((w - 2) - this.swatch.width()) });
+      this.element.css({ width: ((w - 4) - this.swatch.width()) });
     }
   },
   /**
@@ -337,7 +340,7 @@ ColorPicker.prototype = {
     // Append Color Menu
     menu = this.updateColorMenu();
 
-    const popupmenuOpts = {
+    const popupmenuOpts = utils.extend({}, {
       ariaListbox: true,
       menuId: 'colorpicker-menu',
       trigger: 'immediate',
@@ -352,7 +355,7 @@ ColorPicker.prototype = {
         x: 0,
         y: 10
       }
-    };
+    }, this.settings.popupmenuSettings);
 
     // Show Menu
     this.element
@@ -570,8 +573,11 @@ ColorPicker.prototype = {
       // Add clearable swatch to popupmenu
       if (s.clearable) {
         const li = $('<li></li>');
+        const resetColorValue = this.element.attr('data-action') === 'foreColor' ? '000000' : '';
         const a = $(`<a href="#" title="${s.clearableText}"><span class="swatch is-empty${isBorderAll ? ' is-border' : ''}"></span></a>`).appendTo(li);
-        a.data('label', s.clearableText).data('value', '').tooltip();
+        a.data('label', s.clearableText)
+          .data('value', resetColorValue)
+          .tooltip();
         menu.append(li);
       }
 
@@ -597,7 +603,9 @@ ColorPicker.prototype = {
   */
   disable() {
     this.element.prop('disabled', true);
-    this.element.parent().addClass('is-disabled');
+    if (!this.settings.placeIn) {
+      this.element.parent().addClass('is-disabled');
+    }
   },
 
   /**

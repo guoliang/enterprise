@@ -1,4 +1,4 @@
-/* eslint-disable no-continue: "off, no-underscore-dangle */
+/* eslint-disable no-underscore-dangle */
 import * as debug from '../../utils/debug';
 import { utils } from '../../utils/utils';
 import { Locale } from '../locale/locale';
@@ -51,7 +51,7 @@ const LOOKUP_DEFAULTS = {
   autoWidth: false,
   clickArguments: {},
   delimiter: ',',
-  minWidth: 400
+  minWidth: null
 };
 
 function Lookup(element, settings) {
@@ -63,6 +63,16 @@ function Lookup(element, settings) {
 }
 
 Lookup.prototype = {
+
+  /**
+   * @returns {boolean} true if the Lookup is currently the active element.
+   */
+  get isFocused() {
+    const active = document.activeElement;
+    const inputIsActive = this.element.is(active);
+    const wrapperHasActive = this.element.parent('.lookup-wrapper')[0].contains(active);
+    return (inputIsActive || wrapperHasActive);
+  },
 
   /**
    * @private
@@ -109,7 +119,7 @@ Lookup.prototype = {
     }
 
     // Add Button
-    this.icon = $('<span class="trigger" tabindex="-1"></span>').append($.createIcon('search-list'));
+    this.icon = $('<span class="trigger"></span>').append($.createIcon('search-list'));
     if (this.isInlineLabel) {
       this.inlineLabel.addClass(cssClass);
     } else {
@@ -137,6 +147,10 @@ Lookup.prototype = {
 
     if (this.settings.autoWidth) {
       this.applyAutoWidth();
+    }
+
+    if (!this.minWidth) {
+      this.settings.minWidth = this.settings.options && this.settings.options.paging ? 482 : 400;
     }
 
     // Add Masking to show the #
@@ -209,6 +223,12 @@ Lookup.prototype = {
    */
   openDialog(e) {
     const self = this;
+
+    // Don't try to re-open the lookup if it's already open.
+    if (this.isOpen) {
+      return;
+    }
+
     /**
       * Fires before open dialog.
       *
@@ -217,7 +237,6 @@ Lookup.prototype = {
       * @property {object} event - The jquery event object
       */
     const canOpen = self.element.triggerHandler('beforeopen');
-
     if (canOpen === false) {
       return;
     }
@@ -230,6 +249,8 @@ Lookup.prototype = {
       self.settings.click(e, this, self.settings.clickArguments);
       return;
     }
+
+    this.isOpen = true;
 
     if (this.settings.beforeShow) {
       const response = function (grid) {
@@ -363,7 +384,7 @@ Lookup.prototype = {
         text: Locale.translate('Apply'),
         click(e, modal) {
           modal.close();
-          self.insertRows(self.grid.selectedRows());
+          self.insertRows();
         },
         isDefault: true
       }];
@@ -393,6 +414,7 @@ Lookup.prototype = {
       .off('close.lookup')
       .on('close.lookup', () => {
         self.element.focus();
+        delete self.isOpen;
         /**
           * Fires on close dialog.
           *
@@ -448,6 +470,26 @@ Lookup.prototype = {
       this.grid.destroy();
       this.grid = null;
     }
+  },
+
+  /**
+   * Take any number of arrays and merges them.
+   * @private
+   * @param {array} args any number of arrays
+   * @returns {array} merged array
+   */
+  doMerge(...args) {
+    const hash = {};
+    const arr = [];
+    for (let i = 0; i < args.length; i++) {
+      for (let j = 0; j < args[i].length; j++) {
+        if (hash[args[i][j]] !== true) {
+          arr[arr.length] = args[i][j];
+          hash[args[i][j]] = true;
+        }
+      }
+    }
+    return arr;
   },
 
   /**
@@ -519,9 +561,7 @@ Lookup.prototype = {
     if (this.settings.options.source) {
       lookupGrid.off('afterpaging.lookup').on('afterpaging.lookup', () => {
         const fieldVal = self.element.val();
-        if (fieldVal) {
-          self.selectGridRows(fieldVal);
-        }
+        this.selectGridRows(fieldVal);
       });
     }
 
@@ -542,6 +582,27 @@ Lookup.prototype = {
         }
       });
     }
+
+    // Set init values after render the grid
+    if (this.settings.options.source) {
+      this.grid.element.one('afterrender.lookup', () => {
+        if (!this.initValues || (this.initValues && !this.initValues.length)) {
+          this.initValues = [];
+          const isMatch = (node, v) => ((node[this.settings.field] || '').toString() === v.toString());
+          const fieldVal = this.element.val();
+          if (fieldVal) {
+            const fieldValues = (fieldVal.indexOf(this.settings.delimiter) > 1) ?
+              fieldVal.split(this.settings.delimiter) : [fieldVal];
+            fieldValues.forEach((v) => {
+              this.initValues.push({
+                value: v,
+                visited: !!(this.grid.settings.dataset.filter(node => isMatch(node, v)).length) // eslint-disable-line
+              });
+            });
+          }
+        }
+      });
+    }
   },
 
   /**
@@ -558,9 +619,9 @@ Lookup.prototype = {
     }
 
     if (this.grid && this.settings.options.source) {
-      for (let k = 0; k < this.grid._selectedRows.length; k++) {
-        if (isNaN(this.grid._selectedRows[k].idx)) {
-          this.grid._selectedRows.splice(k, 1);
+      for (let i = (this.grid._selectedRows.length - 1); i > -1; i--) {
+        if (isNaN(this.grid._selectedRows[i].idx)) {
+          this.grid._selectedRows.splice(i, 1);
         }
       }
     }
@@ -631,7 +692,7 @@ Lookup.prototype = {
       }
 
       if (typeof this.settings.match !== 'function' &&
-        data[i][field].toString() === value.toString()) {
+        data[i][field]?.toString() === value?.toString()) {
         isMatch = true;
       }
 
@@ -731,7 +792,7 @@ Lookup.prototype = {
   },
 
   /**
-   * apply the min width setting to the datagrid.
+   * Apply the min width setting to the datagrid.
    * @private
    * @param {jquery[]} lookupGrid jQuery wrapped element
    * @returns {jquery[]} grid jQuery wrapped element with the css applied
@@ -744,6 +805,7 @@ Lookup.prototype = {
     // check that the minWidth is less than the windows width, so
     // that the control remains responsive
     if ($(window).width() > this.settings.minWidth) {
+      this.modal.element.addClass('has-minwidth');
       const minWidth = `${this.settings.minWidth}px`;
       lookupGrid.css({
         'min-width': minWidth

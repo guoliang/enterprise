@@ -94,6 +94,19 @@ xssUtils.ensureAlphaNumeric = function (string) {
 };
 
 /**
+ * Make sure a string is only alphanumeric with spaces.
+ * @private
+ * @param {string} string HTML in string form
+ * @returns {string} the modified value
+ */
+xssUtils.ensureAlphaNumericWithSpaces = function (string) {
+  if (typeof string === 'number') {
+    return string;
+  }
+  return this.stripTags(string).replace(/[^a-z0-9 ]/gi, '', '');
+};
+
+/**
  * Escapes HTML, replacing special characters with encoded symbols.
  * Symbols taken from https://bit.ly/1iVkGlc
  * @private
@@ -108,7 +121,7 @@ xssUtils.escapeHTML = function (value) {
       '<': '&lt;',
       '>': '&gt;',
       '"': '&quot;',
-      "'": '&#x27;'
+      "'": '&apos;'
     };
     const reg = /[&<>"']/ig;
     return newValue.replace(reg, match => (map[match]));
@@ -124,15 +137,15 @@ xssUtils.escapeHTML = function (value) {
  * @returns {string} the modified value
  */
 xssUtils.unescapeHTML = function (value) {
-  let newValue = value;
-  if (typeof value === 'string') {
-    newValue = newValue.replace(/&amp;/g, '&');
-    newValue = newValue.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-    newValue = newValue.replace(/&quot;/g, '"');
-    newValue = newValue.replace(/&#x27;/g, "'");
-    newValue = newValue.replace(/&#x2F;/g, '/');
+  if (value === '') {
+    return '';
   }
-  return newValue;
+
+  if (typeof value === 'string') {
+    const doc = new DOMParser().parseFromString(value, 'text/html');
+    return doc.documentElement.textContent;
+  }
+  return value;
 };
 
 /**

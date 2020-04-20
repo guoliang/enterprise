@@ -6,7 +6,7 @@
       <div class="buttonset">
         <button id="datagrid-remove-btn" class="btn" type="button">
           <svg class="icon" focusable="false" aria-hidden="true" role="presentation">
-            <use xlink:href="#icon-delete"></use>
+            <use href="#icon-delete"></use>
           </svg>
           <span>Remove</span>
         </button>
@@ -77,7 +77,7 @@
             response(res.data, req);
           });
         },
-        toolbar: {title: 'Data Grid Header Title',filterRow: true, personalize: true, results: true, dateFilter: false ,keywordFilter: true, advancedFilter: true, actions: true, views: true, rowHeight: true, collapsibleFilter: true}
+        toolbar: {title: 'Data Grid Header Title',filterRow: true, personalize: true, results: true, dateFilter: false ,keywordFilter: true, actions: true, views: true, rowHeight: true, collapsibleFilter: true}
       }).on('selected', function (e, args) {
         console.log(args);
       });

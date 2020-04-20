@@ -14,7 +14,7 @@ button {
 }
 
 // How all button types will deal with iconography
-[class^='btn'] {
+[class*='btn'] {
   //Fixes an issue about the circle effect coming out of the button.
   @include css3-extended(backface-visibility, hidden, (-webkit-, -moz-));
   @include css3-extended(transform, translate3d(0, 0, 0), (-webkit-, -moz-));
@@ -66,10 +66,18 @@ button {
   &.half-width {
     padding: 0 30px;
     width: 50%;
+
+    @media (max-width: $breakpoint-slim) {
+      text-overflow: ellipsis;
+    }
   }
 
   &.full-width {
     padding: 0 30px;
+    width: 100%;
+  }
+
+  &.btn-full-width {
     width: 100%;
   }
 
@@ -460,6 +468,7 @@ a.btn-close {
 }
 
 .btn-menu {
+  min-width: auto;
   padding: 0 10px;
 
   &.btn-primary,
@@ -497,6 +506,13 @@ a.btn-close {
     > span {
       color: transparent;
     }
+  }
+}
+
+// Set the size of the "X"
+.btn-close {
+  > .icon {
+    width: 16px;
   }
 }
 
@@ -541,92 +557,6 @@ a.btn-close {
   }
 }
 
-// Chevron Toggle Buttons (Expand/Collapse)
-@mixin btn-chevron-style {
-  background-color: transparent !important;
-  border-color: transparent;
-  color: $font-color-highcontrast;
-  height: 38px;
-  margin: 0 3px;
-  min-width: 0;
-  padding: 0 10px;
-  width: 40px;
-
-  > * {
-    pointer-events: none;
-  }
-
-  + a {
-    width: calc(100% - 57px);
-  }
-
-  .icon {
-    padding-left: 0;
-    padding-right: 1px;
-    position: relative;
-
-    &:not(.plus-minus) {
-      top: -1px;
-    }
-
-    &.plus-minus {
-      position: static;
-
-      &::before,
-      &::after {
-        background-color: $accordion-icon-color;
-        left: 13px;
-        top: 17px;
-        width: 12px;
-      }
-    }
-
-    &.chevron {
-      @include css3(transform, rotateX(0deg));
-      @include transition(transform 300ms cubic-bezier(0.17, 0.04, 0.03, 0.94));
-
-      padding-right: 0;
-      top: 2px;
-
-      &.active {
-        @include css3(transform, rotateX(180deg));
-      }
-
-    }
-  }
-
-  &:focus {
-    box-shadow: none;
-
-    &:not(.hide-focus) {
-      border-color: $accordion-selected-bg-color;
-      box-shadow: $focus-box-shadow;
-    }
-
-    &:active {
-      background-color: $accordion-selected-bg-color;
-    }
-  }
-
-  &:active {
-    .icon {
-      color: $button-color-tertiary-active-font;
-    }
-
-    .plus-minus {
-      &::before,
-      &::after {
-        background-color: $button-color-tertiary-active-font;
-      }
-    }
-  }
-}
-
-//Card Expander Chevron
-.btn-expander {
-  @include btn-chevron-style;
-}
-
 @include keyframes(ripple-animation) {
   0% {
     opacity: 0.5;
@@ -657,20 +587,23 @@ a.btn-close {
 }
 
 // Short field buttons
-.field-short {
-  [class*='btn'] {
-    height: 25px;
+.field-short,
+.form-layout-compact .field {
+  [class*='btn']:not(.btn-editor) {
+    height: $button-size-compact-height;
     margin-bottom: 10px;
+    min-height: $button-size-compact-height;
     min-width: 0;
 
     > .icon:not(.icon-dropdown) {
       height: 14px;
       margin: 0;
+      margin-top: -2px;
       vertical-align: middle;
 
       + span:not(.audible) {
         display: inline-block;
-        padding: 0 4px 0 0;
+        padding: 0 4px 1px 0;
       }
     }
   }
@@ -706,7 +639,7 @@ html[dir='rtl'] {
   }
 
   // How all button types will deal with iconography
-  [class^='btn'] {
+  [class*='btn'] {
     > .icon {
       + span:not(.audible):not(:empty) {
         padding-left: 0;
@@ -759,7 +692,7 @@ html[dir='rtl'] {
 
 //Do not allow upper case in french
 html[lang^='fr-'] {
-  [class^='btn'] {
+  [class*='btn'] {
     text-transform: none;
   }
 }
@@ -802,9 +735,18 @@ html[lang^='fr-'] {
 }
 
 .is-mac.is-firefox {
-  .field-short {
-    [class^='btn'] {
-      line-height: 25px;
+  .field-short,
+  .form-layout-compact .field {
+    [class*='btn'] {
+      line-height: $button-size-compact-height;
+
+      > .icon:not(.icon-dropdown) {
+        margin-top: -7px;
+      }
+
+      > .icon:not(.icon-dropdown) + span:not(.audible) {
+        padding: 0 4px 7px 0;
+      }
     }
   }
 }
@@ -821,6 +763,18 @@ html[lang^='fr-'] {
 
     .icon {
       color: $hyperlink-hover-color;
+    }
+  }
+}
+
+// Special case to target buttons that are inside of the page container only
+.page-container {
+  button {
+    &.btn {
+      @media (max-width: $breakpoint-big-phone) {
+        text-overflow: ellipsis;
+        width: 100%;
+      }
     }
   }
 }

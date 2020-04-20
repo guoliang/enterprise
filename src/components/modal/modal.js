@@ -1,14 +1,25 @@
 import * as debug from '../../utils/debug';
 import { warnAboutDeprecation } from '../../utils/deprecated';
+import { breakpoints } from '../../utils/breakpoints';
+import { DOM } from '../../utils/dom';
+import { renderLoop, RenderLoopItem } from '../../utils/renderloop';
 import { utils } from '../../utils/utils';
 import { xssUtils } from '../../utils/xss';
 import { Locale } from '../../../src/components/locale/locale';
 
 // jQuery components
 import '../button/button.jquery';
+import '../button/button.set.jquery';
+import '../icons/icons.jquery';
 
 // The name of this component.
 const COMPONENT_NAME = 'modal';
+
+// Possible values for the `trigger` setting
+const MODAL_TRIGGER_SETTINGS = ['click', 'immediate'];
+
+// Possible values for the `fullsize` setting
+const MODAL_FULLSIZE_SETTINGS = [false, 'responsive', 'always'];
 
 /**
 * Responsive and Accessible Modal Control
@@ -21,7 +32,7 @@ const COMPONENT_NAME = 'modal';
 * @param {isAlert} [settings.isAlert=false] Adds alertdialog role for message dialogs.
 * @param {content} [settings.content=null] Ability to pass in dialog html content.
 * @param {string} [settings.cssClass=null] Append a css class to top level.
-* @param {boolean} [settings.autoFocus=true] If true the first input will be focused.
+* @param {boolean} [settings.autoFocus=true] If true, when the modal is opened, the first available input/button in its content area will be focused.
 * @param {string} [settings.id=null] Optionally tag a dialog with an id.
 * @param {number} [settings.frameHeight=180] Optional extra height to add.
 * @param {number} [settings.frameWidth=46] Optional extra width to add.
@@ -29,7 +40,12 @@ const COMPONENT_NAME = 'modal';
 * @param {boolean} [settings.useFlexToolbar] If true the new flex toolbar will be used (For CAP)
 * @param {boolean} [settings.showCloseBtn] If true, show a close icon button on the top right of the modal.
 * @param {number} [settings.maxWidth=null] Optional max width to add in pixels.
+* @param {boolean} [settings.fullsize=false] If true, ignore any sizing algorithms and
 * return the markup in the response and this will be shown in the modal. The busy indicator will be shown while waiting for a response.
+* @param {string} [settings.breakpoint='phone-to-tablet'] The breakpoint to use for a responsive change to "fullsize" mode. See `utils.breakpoints` to view the available sizes.
+* @param {string} [settings.overlayOpacity=0.7] Adds the ability to control the opacity of the background overlay.
+* @param {boolean} [settings.noRefocus=false] If true, causes the modal's trigger element not to become focused once the modal is closed.
+* @param {htmlObject|jqueryObject|srting} [settings.triggerButton=null] The modal's trigger element to keep refocused once the modal is closed. This can be html or jquery object or query selector as string
 */
 const MODAL_DEFAULTS = {
   trigger: 'click',
@@ -44,11 +60,37 @@ const MODAL_DEFAULTS = {
   beforeShow: null,
   useFlexToolbar: false,
   showCloseBtn: false,
-  maxWidth: null
+  maxWidth: null,
+  fullsize: MODAL_FULLSIZE_SETTINGS[0],
+  breakpoint: 'phone-to-tablet',
+  overlayOpacity: 0.7,
+  noRefocus: false,
+  triggerButton: null
 };
+
+// Resets some string-based Modal settings to their defaults
+// if the provided values are not possible or valid.
+function handleModalDefaults(settings) {
+  if (settings.trigger && MODAL_TRIGGER_SETTINGS.indexOf(settings.trigger) === -1) {
+    settings.trigger = MODAL_DEFAULTS.trigger;
+  }
+
+  // Reset fullsize setting to default if it's not available
+  if (settings.fullsize && MODAL_FULLSIZE_SETTINGS.indexOf(settings.fullsize) === -1) {
+    settings.fullsize = MODAL_DEFAULTS.fullsize;
+  }
+
+  // Reset breakpoint setting to default if it's not a valid breakpoint.
+  if (settings.breakpoint && breakpoints.available.indexOf(settings.breakpoint) === -1) {
+    settings.breakpoint = MODAL_DEFAULTS.breakpoint;
+  }
+
+  return settings;
+}
 
 function Modal(element, settings) {
   this.settings = utils.mergeSettings(element, settings, MODAL_DEFAULTS);
+  this.settings = handleModalDefaults(this.settings);
   this.element = $(element);
   debug.logTimeStart(COMPONENT_NAME);
   this.init();
@@ -76,7 +118,7 @@ Modal.prototype = {
     let api;
     if (this.trigger && this.trigger.length) {
       api = this.trigger.data('contextualactionpanel');
-    } else if (this.mainContent.is('body')) {
+    } else if (this.mainContent && this.mainContent.length && this.mainContent.is('body')) {
       api = this.mainContent.data('contextualactionpanel');
     }
     return api;
@@ -113,6 +155,29 @@ Modal.prototype = {
   },
 
   /**
+   * @returns {boolean} whether or not this Modal instance should currently display in
+   * full size mode (uses the settings, but determined at runtime)
+   */
+  get currentlyNeedsFullsize() {
+    return (this.settings.fullsize === 'always' ||
+      (this.settings.fullsize === 'responsive' && breakpoints.isBelow(this.settings.breakpoint)));
+  },
+
+  /**
+   * @returns {HTMLElement} type of things.
+   */
+  get closeBtn() {
+    let closeBtn;
+    const capAPI = this.capAPI;
+    if (capAPI && capAPI.element instanceof $) {
+      closeBtn = capAPI.closeButton[0];
+    } else {
+      closeBtn = this.element[0].querySelector('.modal-content > button.btn-close');
+    }
+    return closeBtn;
+  },
+
+  /**
    * @private
    */
   init() {
@@ -122,9 +187,6 @@ Modal.prototype = {
     this.id = this.element.attr('id') || (parseInt($('.modal').length, 10) + 1);
     this.namespace = `${COMPONENT_NAME}-${this.id}`;
 
-    // Prevent Css on the title
-    this.settings.title = xssUtils.stripTags(this.settings.title, '<div><span><a><small><img><svg><i><b><use><br><strong><em>');
-
     // Find the button or anchor with same dialog ID
     this.trigger = $(`[data-modal="${this.element.attr('id')}"]`);
     if (this.element.is('body')) {
@@ -132,10 +194,11 @@ Modal.prototype = {
     }
 
     if (!this.overlay) {
-      this.overlay = $('<div class="overlay"></div>');
+      this.overlay = $(`<div class="overlay" style="opacity: ${self.settings.overlayOpacity};"></div>`);
     }
 
-    this.oldActive = this.trigger;
+    this.oldActive = this.settings.triggerButton ?
+      this.useJqEl(this.settings.triggerButton) : this.trigger;
 
     if (this.settings.trigger === 'click' && !this.isAttachedToBody) {
       this.trigger.on(`click.${self.namespace}`, (e) => {
@@ -147,9 +210,13 @@ Modal.prototype = {
     }
 
     if (this.settings.trigger === 'immediate') {
-      setTimeout(() => {
-        self.open();
-      }, 1);
+      const triggerImmediateTimer = new RenderLoopItem({
+        duration: 1,
+        timeoutCallback() {
+          self.open();
+        }
+      });
+      renderLoop.register(triggerImmediateTimer);
     }
 
     self.isCancelled = false;
@@ -158,9 +225,14 @@ Modal.prototype = {
     if (this.settings.content) {
       this.settings.trigger = this.settings.content instanceof jQuery ? this.settings.trigger : 'immediate';
       this.appendContent();
-      setTimeout(() => {
-        self.open();
-      }, 1);
+
+      const renderFromContentTimer = new RenderLoopItem({
+        duration: 1,
+        timeoutCallback() {
+          self.open();
+        }
+      });
+      renderLoop.register(renderFromContentTimer);
       return;
     }
 
@@ -171,24 +243,36 @@ Modal.prototype = {
       return;
     }
 
-    self.addButtons(this.settings.buttons);
+    if (this.isCAP) {
+      this.addButtons(this.settings.buttons);
+    } else {
+      // Adds the modal buttonset, if applicable
+      this.renderButtonset();
+    }
+
     this.element.appendTo('body');
     this.element[0].style.display = 'none';
   },
 
   appendContent() {
     let isAppended = false;
+    const maxWidth = this.settings.maxWidth ? ` style="max-width: ${this.settings.maxWidth}px;"` : '';
 
-    this.element = $(`${'<div class="modal">' +
-        '<div class="modal-content" style="max-width: '}${this.settings.maxWidth ? this.settings.maxWidth : ''}px${'">' +
-          '<div class="modal-header"><h1 class="modal-title">'}${this.settings.title}</h1></div>` +
-          '<div class="modal-body-wrapper">' +
-            '<div class="modal-body"></div>' +
-          '</div>' +
-        '</div>' +
-      '</div>');
+    this.element = $(`
+      <div class="modal">
+        <div class="modal-content"${maxWidth}>
+          <div class="modal-header"><h1 class="modal-title"></h1></div>
+          <div class="modal-body-wrapper">
+            <div class="modal-body"></div>
+          </div>
+        </div>
+      </div>
+    `);
 
-    if (this.settings.showCloseBtn) {
+    // Only draw the close button if we're not in a CAP.
+    // CAP has its own rendering process for buttons, which are inside a toolbar and not
+    // part of the Modal Buttonset
+    if (this.settings.showCloseBtn && !this.isCAP) {
       const closeBtn = $(`
         <button type="button" class="btn-icon btn-close" title="${Locale.translate('Close')}" aria-hidden="true">
           ${$.createIcon('close')}
@@ -244,11 +328,17 @@ Modal.prototype = {
     }
 
     if (this.settings.title) {
-      this.element.find('.modal-title').text(this.settings.title);
+      // Prevent Css on the title
+      this.element.find('.modal-title')[0].innerHTML = xssUtils.stripTags(this.settings.title, '<div><span><a><small><img><svg><i><b><use><br><strong><em>');
     }
 
     if (!isAppended) {
-      this.addButtons(this.settings.buttons);
+      if (this.isCAP) {
+        this.addButtons(this.settings.buttons);
+      } else {
+        // Adds the modal buttonset, if applicable
+        this.renderButtonset();
+      }
     }
 
     utils.fixSVGIcons(this.element);
@@ -327,6 +417,113 @@ Modal.prototype = {
     }
   },
 
+  /**
+   * Responsible for rendering a Modal Buttonset component
+   * @private
+   * @returns {void}
+   */
+  renderButtonset() {
+    let buttons = this.settings.buttons;
+    const style = 'modal';
+    const targetSettings = { style };
+    const self = this;
+
+    if (!this.buttonsetElem) {
+      let buttonsetElem = this.element.find('.modal-buttonset');
+
+      // If the ButtonSet Element doesn't exist (and it should), create it.
+      if (!buttonsetElem || !buttonsetElem.length) {
+        if (!Array.isArray(buttons) || !buttons.length) {
+          return;
+        }
+
+        const body = this.element.find('.modal-body');
+        const bodywrapper = body.parent();
+        const flexText = this.settings.useFlexToolbar ? 'toolbar-section ' : '';
+        const buttonsetTmpl = `<div class="${flexText}modal-buttonset"></div>`;
+
+        buttonsetElem = $(buttonsetTmpl);
+        buttonsetElem.insertAfter(bodywrapper);
+
+        targetSettings.buttons = buttons;
+      } else {
+        targetSettings.detectHTMLButtons = true;
+      }
+
+      // Render the Buttonset Component
+      this.buttonsetElem = buttonsetElem;
+      buttonsetElem.buttonset(targetSettings);
+      this.buttonsetAPI = buttonsetElem.data('buttonset');
+
+      // Change the buttons JSON used
+      buttons = this.buttonsetAPI.toData().buttons;
+    }
+
+    const buttonAPIs = this.buttonsetAPI.buttons;
+    const $buttons = $();
+    const btnPercentWidth = 100 / buttonAPIs.length;
+
+    // Make modifications to each button
+    buttonAPIs.forEach((btn, i) => {
+      // Handle additional settings provided outside the
+      // button API for modals, if applicable.
+      const settingsJSON = Array.isArray(buttons) && buttons.length ? buttons[i] : undefined;
+      let triggeredFunc = false;
+      if (settingsJSON) {
+        // Set a unique ID attribute if one wasn't predefined.
+        btn.element[0].setAttribute('id', buttons[i].id || utils.uniqueId(btn.element, 'button', 'modal'));
+
+        // Setup a user-defined click handler, if one was provided.
+        // Do not attach this handler in some scenarios.
+        $(btn.element).on(`click.${self.namespace}`, (e) => {
+          const func = settingsJSON.click;
+          if (func) {
+            func.apply(self.element[0], [e, self]);
+            triggeredFunc = true;
+          }
+        });
+
+        // Setup a click handler for specific types of buttons that are valid for
+        // closing this modal instance.
+        const $validCloseBtns = $(btn.element).not([
+          '[data-ng-click]',
+          '[ng-click]',
+          '[onclick]',
+          ':submit',
+          '.btn-menu',
+          '.btn-actions',
+          '.colorpicker',
+          '.fontpicker'
+        ].join(', '));
+        $validCloseBtns.on(`click.${self.namespace}`, (e) => {
+          if (triggeredFunc) {
+            return;
+          }
+          if ($(e.target).is('.btn-cancel')) {
+            self.isCancelled = true;
+          }
+          self.close();
+        });
+
+        // Handle Validation
+        if (settingsJSON.validate) {
+          btn.element[0].classList.add('no-validation');
+        }
+      }
+
+      // In standard Modal mode, size the buttons to fit after rendering.
+      btn.element[0].style.width = `${btnPercentWidth}%`;
+
+      $buttons.add(btn);
+    });
+  },
+
+  /**
+   * Adds buttons to a standard/flex Toolbar component (used in Contextual Action Panels)
+   * @private
+   * @param {array<object>} buttons an incoming array of button definitions.
+   * @returns {void}
+   */
   addButtons(buttons) {
     const self = this;
     const body = this.element.find('.modal-body');
@@ -395,6 +592,10 @@ Modal.prototype = {
         btn.addClass('btn-modal-primary');
       } else {
         btn.addClass('btn-modal');
+      }
+
+      if (props.disabled) {
+        btn[0].disabled = props.disabled === true;
       }
 
       if (props.audible) {
@@ -547,7 +748,9 @@ Modal.prototype = {
       delete this.busyIndicator;
     }
 
-    if (!this.trigger || this.trigger.length === 0) {
+    if (this.settings.triggerButton) {
+      this.oldActive = this.useJqEl(this.settings.triggerButton);
+    } else if (!this.trigger || this.trigger.length === 0 || this.trigger.is('body')) {
       this.oldActive = $(':focus'); // Save and restore focus for A11Y
     }
 
@@ -668,13 +871,26 @@ Modal.prototype = {
     this.root[0].style.display = '';
     this.element[0].style.display = '';
 
-    setTimeout(() => {
-      this.resize();
-      this.element.addClass('is-visible').attr('role', (this.settings.isAlert ? 'alertdialog' : 'dialog'));
-      this.root.removeAttr('aria-hidden');
-      this.overlay.attr('aria-hidden', 'true');
-      this.element.attr('aria-modal', 'true'); // This is a forward thinking approach, since aria-modal isn't actually supported by browsers or ATs yet
-    }, 1);
+    // Stagger the rest of the Modal "show" process in several renderLoop ticks
+    const self = this;
+    const resizeTimer = new RenderLoopItem({
+      duration: 1,
+      timeoutCallback() {
+        self.resize();
+        self.element.attr('role', (self.settings.isAlert ? 'alertdialog' : 'dialog'));
+        self.root.removeAttr('aria-hidden');
+        self.overlay.attr('aria-hidden', 'true');
+        self.element.attr('aria-modal', 'true'); // This is a forward thinking approach, since aria-modal isn't actually supported by browsers or ATs yet
+      }
+    });
+    const displayTimer = new RenderLoopItem({
+      duration: 2,
+      timeoutCallback() {
+        self.element.addClass('is-visible');
+      }
+    });
+    renderLoop.register(resizeTimer);
+    renderLoop.register(displayTimer);
 
     // Add the 'modal-engaged' class after all the HTML markup and CSS classes have a
     // chance to be established
@@ -709,9 +925,9 @@ Modal.prototype = {
       this.element.find(':focusable').first().focus();
     });
 
-    function focusElement(self) {
-      let focusElem = self.element.find(':focusable').not('.modal-header .searchfield').first();
-      self.keepFocus();
+    function focusElement(thisElem) {
+      let focusElem = thisElem.element.find(':focusable').not('.modal-header .searchfield').first();
+      thisElem.keepFocus();
 
       /**
       * Fires when the modal opens.
@@ -720,14 +936,14 @@ Modal.prototype = {
       * @property {object} event - The jquery event object
       * @property {object} ui - The dialog object
       */
-      self.element.trigger('open', [self]);
+      self.element.trigger('open', [thisElem]);
 
       if (focusElem.length === 0) {
-        focusElem = self.element.find('.btn-modal-primary');
+        focusElem = thisElem.element.find('.btn-modal-primary');
       }
 
       if (focusElem.length === 1 && focusElem.is('.btn-modal')) {
-        focusElem = self.element.find('.btn-modal-primary');
+        focusElem = thisElem.element.find('.btn-modal-primary');
       }
 
       if (focusElem.length === 1 && focusElem.is('button') && !focusElem.is(':disabled')) {
@@ -761,16 +977,24 @@ Modal.prototype = {
       this.resize();
     });
 
-    setTimeout(() => {
-      this.disableSubmit();
-    }, 10);
+    const disableSubmitTimer = new RenderLoopItem({
+      duration: 5,
+      timeoutCallback() {
+        self.disableSubmit();
+      }
+    });
+    renderLoop.register(disableSubmitTimer);
 
     const fields = this.element.find('[data-validate]');
     fields.removeClass('disable-validation');
 
-    setTimeout(() => {
-      focusElement(this);
-    }, 200);
+    const focusElementTimer = new RenderLoopItem({
+      duration: 20,
+      timeoutCallback() {
+        focusElement(self);
+      }
+    });
+    renderLoop.register(focusElementTimer);
 
     /**
     * Fires after the modal has opened.
@@ -779,31 +1003,74 @@ Modal.prototype = {
     * @property {object} event - The jquery event object
     * @property {object} ui - The dialog object
     */
-    setTimeout(() => {
-      this.element.trigger('afteropen');
-    }, 300);
+    const afterOpenTimer = new RenderLoopItem({
+      duration: 30,
+      timeoutCallback() {
+        self.element.trigger('afteropen');
+      }
+    });
+    renderLoop.register(afterOpenTimer);
   },
 
   resize() {
-    // 90% -(180 :extra elements-height)
-    let calcHeight = ($(window).height() * 0.9) - this.settings.frameHeight;
-    const calcWidth = ($(window).width() * 1) - this.settings.frameWidth;
+    let calcHeight;
+    let calcWidth;
+    const currentlyNeedsFullsize = this.currentlyNeedsFullsize;
+
+    // Set the height of the inner frame to fit and accommodate headers/button rows.
+    // If `fullsize` is not false, stretch the calculated size accordingly
+    if (currentlyNeedsFullsize) {
+      this.element[0].classList.add('display-fullsize');
+    } else {
+      this.element[0].classList.remove('display-fullsize');
+      calcHeight = ($(window).height() * 0.9) - this.settings.frameHeight;
+      calcWidth = ($(window).width() * 1) - this.settings.frameWidth;
+    }
 
     const wrapper = this.element.find('.modal-body-wrapper');
 
     if (wrapper.length) {
-      wrapper[0].style.maxHeight = `${calcHeight}px`;
-      wrapper[0].style.maxWidth = `${calcWidth}px`;
+      if (currentlyNeedsFullsize) {
+        wrapper[0].style.maxHeight = '';
+        wrapper[0].style.maxWidth = '';
+      } else {
+        wrapper[0].style.maxHeight = `${calcHeight}px`;
+        wrapper[0].style.maxWidth = `${calcWidth}px`;
+      }
     }
 
     if (this.element.hasClass('lookup-modal')) {
-      const table = this.element.find('.datagrid-body');
+      const table = this.element.find('.datagrid-wrapper');
       const hasPager = this.element.find('.pager-toolbar');
       const container = table.closest('.datagrid-container');
 
-      calcHeight = calcHeight - (container.prev().is('.toolbar') ? 130 : 67) - (container.next().is('.pager-toolbar') ? 35 : 0);
-      table[0].style.maxHeight = `${calcHeight + (hasPager.length ? -15 : 0)}px`;
-      table[0].style.maxWidth = `${calcWidth}px`;
+      calcHeight = calcHeight -
+        (container.prev().is('.toolbar') ? 130 : 67) -
+        (container.next().is('.pager-toolbar') ? 35 : 0) +
+        (hasPager.length ? -15 : 0);
+
+      if (currentlyNeedsFullsize) {
+        table[0].style.maxHeight = '';
+        table[0].style.maxWidth = '';
+      } else {
+        table[0].style.maxHeight = `${calcHeight}px`;
+        table[0].style.maxWidth = `${calcWidth}px`;
+      }
+    }
+
+    if (this.element.hasClass('datagrid-columns-dialog')) {
+      wrapper[0].style.overflow = 'hidden';
+      if (calcHeight > 220) {
+        this.element.find('.modal-body')[0].style.height = '';
+        this.element.find('.listview.alternate-bg')[0].style.maxHeight = '';
+        this.element.find('.listview.alternate-bg')[0].style.height = '';
+        this.element.find('.listview.alternate-bg')[0].style.minHeight = '';
+      } else {
+        this.element.find('.modal-body')[0].style.height = `${calcHeight}px`;
+        this.element.find('.listview.alternate-bg')[0].style.maxHeight = `${calcHeight - 41}px`;
+        this.element.find('.listview.alternate-bg')[0].style.height = `${calcHeight - 41}px`;
+        this.element.find('.listview.alternate-bg')[0].style.minHeight = 0;
+      }
     }
 
     const toolbars = this.element.find('.toolbar');
@@ -822,6 +1089,62 @@ Modal.prototype = {
     return this.visible;
   },
 
+  /**
+   * @returns {boolean} whether or not the Modal itself, or a component inside the Modal, currently has focus.
+   * In some cases, this needs to get access to child components to determine focus state.
+   */
+  get isFocused() {
+    let componentHasFocus = false;
+    const activeElem = document.activeElement;
+    const focusableElems = DOM.focusableElems(this.element[0]);
+    focusableElems.forEach((elem) => {
+      if (componentHasFocus) {
+        return;
+      }
+
+      // Check the base element
+      const $elem = $(elem);
+      if ($elem.is($(activeElem)) || elem.contains(activeElem)) {
+        componentHasFocus = true;
+      }
+
+      // Dropdown/Multiselect
+      if ($elem.is('div.dropdown, div.multiselect')) {
+        componentHasFocus = $elem.parent().prev('select').data('dropdown')?.isFocused;
+      }
+
+      // Lookup
+      if ($elem.is('.lookup')) {
+        componentHasFocus = $elem.data('lookup')?.isFocused;
+      }
+
+      // Searchfield
+      if ($elem.is('.searchfield')) {
+        componentHasFocus = $elem.data('searchfield')?.isFocused;
+      }
+    });
+
+    // Check to see if a Popover/Tooltip has focus, and if that component's parent
+    // element is inside the Modal
+    const tooltipParents = $(activeElem).parents('.tooltip, .popover');
+    if (tooltipParents.length) {
+      tooltipParents.each((i, elem) => {
+        const api = $(elem).data('tooltip');
+        if (api && api.isFocused) {
+          componentHasFocus = true;
+        }
+      });
+    }
+
+    return componentHasFocus;
+  },
+
+  /**
+   * Sets up event listeners that deal with retaining keyboard focus on elements within the current Modal
+   * window when the Modal is open. These events are cleared when the modal is closed.
+   * @private
+   * @returns {void}
+   */
   keepFocus() {
     const self = this;
 
@@ -881,6 +1204,30 @@ Modal.prototype = {
           }
         }
       });
+
+    // In some cases, the `body` tag becomes the `document.activeElement` if the Overlay,
+    // or a wrapping iframe element is clicked.  This will reset the focus.
+    if (this.settings.autoFocus) {
+      $('body').on(`focusin.${self.namespace}`, (e) => {
+        if (self.dontCheckFocus || !self.isOnTop) {
+          return;
+        }
+        if ($(e.target).closest(self.element).length === 1) {
+          return;
+        }
+        if (!self.isFocused) {
+          self.dontCheckFocus = true;
+          const ignoreFocusCheckTimer = new RenderLoopItem({
+            duration: 20,
+            timeoutCallback() {
+              delete self.dontCheckFocus;
+            }
+          });
+          renderLoop.register(ignoreFocusCheckTimer);
+          firstTabbable.removeClass('hide-focus').focus();
+        }
+      });
+    }
   },
 
   /**
@@ -908,10 +1255,14 @@ Modal.prototype = {
       return false;
     }
 
+    if (this.isCAP) {
+      this.element.addClass('is-animating');
+    }
+
     if (this.mainContent && this.removeNoScroll) {
       this.mainContent.removeClass('no-scroll');
     }
-    $('body').off(`resize.${this.namespace}`);
+    $('body').off(`resize.${this.namespace} focusin.${self.namespace}`);
 
     this.element.off(`keypress.${this.namespace} keydown.${this.namespace}`);
     this.element.removeClass('is-visible');
@@ -921,42 +1272,83 @@ Modal.prototype = {
       this.root.attr('aria-hidden', 'true');
     }
 
-    if ($('.modal-page-container').length <= 1) {
+    // Remove the overlay and special body classes if this Modal was the very last one to be closed
+    // (Modals can be nested)
+    const modalContainers = $('.modal-page-container');
+    const visibleModalPageContainers = modalContainers.filter((i, elem) => {
+      const ariaHidden = $(elem).is('[aria-hidden]');
+      const displayNone = $(elem).css('display') === 'none';
+      return !ariaHidden && !displayNone;
+    });
+    if (visibleModalPageContainers.length < 1) {
       $('body').removeClass('modal-engaged');
-      $('body > *').not(this.element.closest('.modal-page-container')).removeAttr('aria-hidden');
-      $('.overlay').remove();
+      modalContainers.not(this.root).removeAttr('aria-hidden');
+      $('.overlay:not(.busy)').remove();
     }
+
+    delete this.dontCheckFocus;
 
     // Fire Events
     self.element.trigger('close', self.isCancelled);
 
     // Restore focus
-    if (this.oldActive && $(this.oldActive).is('a:visible, button:visible, input:visible, textarea:visible')) {
-      this.oldActive.focus();
-      this.oldActive = null;
-    } else if (this.trigger.parents('.toolbar, .formatter-toolbar').length < 1) {
-      this.trigger.focus();
+    if (!this.settings.noRefocus) {
+      if (this.isFocused) {
+        document.activeElement.blur();
+      }
+      if (!this.oldActive && this.settings.triggerButton) {
+        this.oldActive = this.useJqEl(this.settings.triggerButton);
+      }
+      if (this.oldActive && $(this.oldActive).is('a:visible, button:visible, input:visible, textarea:visible')) {
+        this.oldActive.focus();
+      } else if (this.trigger.parents('.toolbar, .formatter-toolbar').length < 1) {
+        this.trigger.focus();
+      }
     }
 
     // close tooltips
     $('#validation-errors, #tooltip, #validation-tooltip').addClass('is-hidden');
 
+    const closeBtn = $(this.closeBtn);
+    const closeBtnTooltipAPI = closeBtn.data('tooltip');
+    if (closeBtnTooltipAPI) {
+      closeBtnTooltipAPI.hide();
+      closeBtnTooltipAPI.reopenDelay = true;
+    }
+
     // remove the event that changed this page's skip-link functionality in the open event.
     $('.skip-link').off(`focus.${this.namespace}`);
 
-    setTimeout(() => {
-      self.overlay.remove();
-      self.root[0].style.display = 'none';
-      self.element.trigger('afterclose');
+    const afterCloseTimer = new RenderLoopItem({
+      duration: 20, // should match the length of time needed for the overlay to fade out
+      timeoutCallback() {
+        self.overlay.remove();
+        self.root[0].style.display = 'none';
+        self.element.trigger('afterclose');
 
-      if (self.settings.trigger === 'immediate' || destroy) {
-        if (!self.isCAP || (self.isCAP && !self.capAPI)) {
-          self.destroy();
+        if (closeBtnTooltipAPI) {
+          delete closeBtnTooltipAPI.reopenDelay;
+        }
+
+        if (self.settings.trigger === 'immediate' || destroy) {
+          if (!self.isCAP || (self.isCAP && !self.capAPI)) {
+            self.destroy();
+          }
         }
       }
-    }, 300); // should match the length of time needed for the overlay to fade out
+    });
+    renderLoop.register(afterCloseTimer);
 
     return false;
+  },
+
+  /**
+   * Use input as jquery element
+   * @param {htmlObject|jqueryObject|srting} option This option can be html or jquery object or query selector as string
+   * @returns {object} The jquery element.
+   */
+  useJqEl(option) {
+    return option instanceof jQuery ? option : $(option);
   },
 
   /**
@@ -967,6 +1359,7 @@ Modal.prototype = {
   updated(settings) {
     if (settings) {
       this.settings = utils.mergeSettings(this.element, settings, this.settings);
+      this.settings = handleModalDefaults(this.settings);
     }
 
     if (this.settings.trigger === 'immediate') {
@@ -1001,17 +1394,25 @@ Modal.prototype = {
       $('body').off(`resize.${self.namespace}`);
       $(document).off(`keydown.${self.namespace}`);
 
-      if (self.modalButtons) {
-        self.element.find('button').off(`click.${self.namespace}`);
-      }
-
       if (self.element.find('.detailed-message').length === 1) {
         $('body').off(`resize.${self.namespace}`);
       }
 
       // Properly teardown contexual action panels
       if (self.isCAP && self.capAPI) {
-        self.capAPI.teardown();
+        self.capAPI.destroy();
+      }
+
+      // If a buttonset exists, remove events and destroy completely.
+      if (self.buttonsetAPI) {
+        self.buttonsetAPI.buttons.forEach((button) => {
+          $(button.element).off(`click.${self.namespace}`);
+        });
+
+        self.buttonsetAPI.destroy();
+        self.buttonsetElem.remove();
+        delete self.buttonsetAPI;
+        delete self.buttonsetElem;
       }
 
       self.trigger.off(`click.${self.namespace}`);
@@ -1023,27 +1424,28 @@ Modal.prototype = {
       }
       self.element[0].removeAttribute('data-modal');
 
-      $.removeData(self.element[0], COMPONENT_NAME);
-      if (self.isCAP && self.capAPI) {
-        self.capAPI.destroy();
-      }
-
-      setTimeout(() => {
-        let elem = null;
-        let modalApi = self.element ? self.element.data(COMPONENT_NAME) : null;
-        if (modalApi) {
-          elem = self.element[0];
-        } else {
-          modalApi = self.trigger ? self.trigger.data(COMPONENT_NAME) : null;
+      const destroyTimer = new RenderLoopItem({
+        duration: 21, // should match the length of time needed for the overlay to fade out
+        timeoutCallback() {
+          let elem = null;
+          let modalApi = self.element ? self.element.data(COMPONENT_NAME) : null;
           if (modalApi) {
-            elem = self.trigger[0];
+            elem = self.element[0];
+          } else {
+            modalApi = self.trigger ? self.trigger.data(COMPONENT_NAME) : null;
+            if (modalApi) {
+              elem = self.trigger[0];
+            }
+          }
+          if (elem && modalApi && modalApi.overlay) {
+            modalApi.overlay.remove();
+            $.removeData(elem, COMPONENT_NAME);
           }
         }
-        if (elem && modalApi && modalApi.overlay) {
-          modalApi.overlay.remove();
-          $.removeData(elem, COMPONENT_NAME);
-        }
-      }, 310); // should take the length of time needed for the overlay to fade out
+      });
+      renderLoop.register(destroyTimer);
+
+      $.removeData(self.element[0], COMPONENT_NAME);
     }
 
     if (!this.visible) {

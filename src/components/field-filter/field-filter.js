@@ -99,7 +99,7 @@ FieldFilter.prototype = {
       const ffId = `${id}-ff`;
 
       // Set Field
-      this.field = this.element.closest('.field');
+      this.field = this.element.closest('.field, .field-short');
 
       // RTL list x-position
       const isRTL = Locale.isRTL();
@@ -128,8 +128,10 @@ FieldFilter.prototype = {
       this.ffdropdown.prev('label')[0].setAttribute('for', ffId);
 
       // Add css classes
-      this.field.addClass('fieldfilter-wrapper')
-        .find('div.dropdown.field-filter-dropdown span').addClass('audible');
+      const labelText = this.ffdropdown.prev('label').prev('label').text();
+      this.field.addClass('fieldfilter-wrapper');
+      this.field.find('div.dropdown span.audible').text(labelText);
+      this.field.find('div.dropdown span').addClass('audible');
 
       // Dropdown api
       this.ddApi = this.ffdropdown.data('dropdown');
@@ -218,7 +220,8 @@ FieldFilter.prototype = {
     this.ffdropdown
       .on(`listopened.${COMPONENT_NAME}`, () => {
         // drowpdownWidth - border (52)
-        $('#dropdown-list ul').width(this.element.outerWidth() + 52);
+        const extra = this.field.is('.field-short') ? 42 : 52;
+        $('#dropdown-list ul').width(this.element.outerWidth() + extra);
       })
       .on(`selected.${COMPONENT_NAME}`, (e, args) => {
         /**

@@ -20,7 +20,7 @@
       <div class="more">
         <button class="btn-actions" type="button">
           <svg class="icon" focusable="false" aria-hidden="true" role="presentation">
-            <use xlink:href="#icon-more"></use>
+            <use href="#icon-more"></use>
           </svg>
           <span class="audible">More Actions</span>
         </button>
@@ -40,7 +40,7 @@
       <div class="buttonset">
         <button class="btn-icon" type="button" id="remove-btn">
           <svg class="icon" focusable="false" aria-hidden="true" role="presentation">
-            <use xlink:href="#icon-delete"></use>
+            <use href="#icon-delete"></use>
           </svg>
           <span class="audible">Remove</span>
         </button>
@@ -104,7 +104,7 @@
 
     //Example changing cell value
     $('#change-cell').on('click', function () {
-      // In Landmark, the values of a datagrid maybe updated externally - in a modeal dialog and new data values returned to the row.
+      // The values of a datagrid maybe updated externally - in a modeal dialog and new data values returned to the row.
       // In this simplified example, changing the quantity value from 1 to 50 for row 0
       gridApi.updateRow(0, { id: 0, productId: 2142201, productName: 'Compressor', activity:  'Filter Testing', quantity: 50, price: 210.99, status: 'OK', orderDate:  '', portable: false, action: 1 });
       gridApi.rowStatus(0, 'in-progress', 'Row has changed');
