@@ -14,7 +14,7 @@ const config = {
   input: 'src/index.js',
   output: {
     file: 'dist/js/sohoxi.js',
-    format: 'iife',
+    format: 'es',
     sourcemap: true,
     sourcemapFile: 'dist/js/sohoxi.js.map',
     name: 'Soho',
