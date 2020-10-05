@@ -21,6 +21,27 @@
 }
 
 .calendar-event .calendar-event-icon .icon {
-  height: 10px;
-  top: 1px;
+  height: 14px;
+  left: -1px;
+  top: 0;
+}
+
+@include respond-to(phabletdown) {
+  .calendar {
+    .calendar-event-details-mobile {
+      .status-swatch {
+        margin-top: 5px;
+      }
+
+      ul {
+        li {
+          .r-content {
+            .btn-icon {
+              margin-top: 3px;
+            }
+          }
+        }
+      }
+    }
+  }
 }

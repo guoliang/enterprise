@@ -4,7 +4,7 @@ import { utils } from '../../utils/utils';
 import { Locale } from '../locale/locale';
 
 // jQuery Components
-import '../datagrid/datagrid.jquery';
+import '../datagrid/datagrid.jquery'; //eslint-disable-line
 import '../icons/icons.jquery';
 import '../modal/modal.jquery';
 
@@ -34,8 +34,8 @@ let LOOKUP_GRID_ID = 'lookup-datagrid';
  * @param {boolean} [settings.autoWidth=false] If true the field will grow/change in size based on the content selected.
  * @param {char} [settings.delimiter=','] A character being used to separate data strings
  * @param {int} [settings.minWidth=400] Applys a minimum width to the lookup
+ * @param {boolean} [settings.clearable=false] Add an ability to clear the lookup field. If "true", it will affix an "x" button to the right section of the field.
  */
-
 const LOOKUP_DEFAULTS = {
   click: null,
   field: 'id',
@@ -45,13 +45,13 @@ const LOOKUP_DEFAULTS = {
   beforeShow: null,
   modalContent: null,
   editable: true,
-  typeahead: false, // Future TODO
   autoApply: true,
   validator: null,
   autoWidth: false,
   clickArguments: {},
   delimiter: ',',
-  minWidth: null
+  minWidth: null,
+  clearable: false
 };
 
 function Lookup(element, settings) {
@@ -71,7 +71,8 @@ Lookup.prototype = {
     const active = document.activeElement;
     const inputIsActive = this.element.is(active);
     const wrapperHasActive = this.element.parent('.lookup-wrapper')[0].contains(active);
-    return (inputIsActive || wrapperHasActive);
+    const lookupModalHasActive = this.modal?.element[0].contains(active);
+    return (inputIsActive || wrapperHasActive || lookupModalHasActive);
   },
 
   /**
@@ -162,6 +163,10 @@ Lookup.prototype = {
       this.disable();
     }
 
+    if (this.settings.clearable) {
+      lookup.searchfield({ clearable: true });
+    }
+
     if (!this.settings.editable) {
       this.element.attr('readonly', 'true').addClass('is-not-editable');
     }
@@ -213,6 +218,26 @@ Lookup.prototype = {
         self.openDialog(e);
       }
     });
+  },
+
+  /**
+   * Triggers tooltip
+   * @private
+   * @returns {void}
+   */
+  setTooltip() {
+    setTimeout(() => {
+      const isOverlapping = this.element[0].scrollWidth > this.element[0].offsetWidth;
+      const tooltipApi = this.element.data('tooltip');
+
+      if (isOverlapping) {
+        this.element.tooltip({
+          content: this.element.val()
+        });
+      } else if (tooltipApi && !isOverlapping) {
+        tooltipApi.destroy();
+      }
+    }, 100);
   },
 
   /**
@@ -358,6 +383,9 @@ Lookup.prototype = {
       if (self.settings.title) {
         return self.settings.title;
       }
+      if (self.settings?.options?.toolbar?.title) {
+        return self.settings?.options?.toolbar?.title;
+      }
       return '';
     }
     const labelText = getLabelText();
@@ -377,12 +405,13 @@ Lookup.prototype = {
       buttons = [{
         text: Locale.translate('Cancel'),
         click(e, modal) {
-          self.element.focus();
+          modal.oldActive = self.element;
           modal.close();
         }
       }, {
         text: Locale.translate('Apply'),
         click(e, modal) {
+          modal.oldActive = self.element;
           modal.close();
           self.insertRows();
         },
@@ -394,9 +423,17 @@ Lookup.prototype = {
       buttons = [{
         text: Locale.translate('Cancel'),
         click(e, modal) {
-          self.element.focus();
+          modal.oldActive = self.element;
           modal.close();
         }
+      }, {
+        text: Locale.translate('Apply'),
+        click(e, modal) {
+          modal.oldActive = self.element;
+          modal.close();
+          self.insertRows();
+        },
+        isDefault: true
       }];
     }
 
@@ -404,6 +441,7 @@ Lookup.prototype = {
       this.settings.options.toolbar.keywordFilter;
 
     $('body').modal({
+      triggerButton: this.element,
       title: labelText,
       content,
       buttons,
@@ -413,7 +451,6 @@ Lookup.prototype = {
     })
       .off('close.lookup')
       .on('close.lookup', () => {
-        self.element.focus();
         delete self.isOpen;
         /**
           * Fires on close dialog.
@@ -425,6 +462,7 @@ Lookup.prototype = {
           * @property {object} grid in lookup
           */
         self.element.triggerHandler('close', [self.modal, self.grid]);
+        self.setTooltip();
       });
 
     self.modal = $('body').data('modal');
@@ -533,8 +571,7 @@ Lookup.prototype = {
       self.modal.element.find('.title').not('.selection-count').remove();
     }
 
-    const hasKeywordSearch = this.settings.options && this.settings.options.toolbar &&
-      this.settings.options.toolbar.keywordFilter;
+    const hasKeywordSearch = this.settings?.options?.toolbar?.keywordFilter;
 
     if (!hasKeywordSearch && self.modal) {
       self.modal.element.find('.toolbar').appendTo(self.modal.element.find('.modal-header'));
@@ -715,7 +752,7 @@ Lookup.prototype = {
    * @returns {void}
    */
   insertRows() {
-    let value = '';
+    let value = [];
 
     this.selectedRows = this.grid.selectedRows();
 
@@ -728,7 +765,8 @@ Lookup.prototype = {
         currValue = this.selectedRows[i].data[this.settings.field];
       }
 
-      value += (i !== 0 ? this.settings.delimiter : '') + currValue;
+      // Push the value/s to the Array.
+      value.push(currValue);
 
       // Clear _selected tag
       const idx = this.selectedRows[i].idx;
@@ -736,6 +774,9 @@ Lookup.prototype = {
         delete this.settings.options.dataset[idx]._selected;
       }
     }
+
+    // Eliminate duplicate values.
+    value = value.filter((a, b) => value.indexOf(a) === b);
 
     /**
       * Fires on input value change.
@@ -745,7 +786,7 @@ Lookup.prototype = {
       * @property {object} event - The jquery event object
       * @property {object} selected rows
       */
-    this.element.val(value).trigger('change', [this.selectedRows]);
+    this.element.val(value.join(this.settings.delimiter)).trigger('change', [this.selectedRows]);
     this.element.trigger('input', [this.selectedRows]);
     this.applyAutoWidth();
     this.element.focus();
@@ -869,20 +910,23 @@ Lookup.prototype = {
   * @returns {void}
   */
   destroy() {
-    $.removeData(this.element[0], COMPONENT_NAME);
     $('.modal .searchfield').off('keypress.lookup');
     $('body').off('open.lookup close.lookup');
+
+    this.icon.off('click.lookup');
+    this.icon.remove();
+
+    this.element.off('keyup.lookup');
+    this.element.unwrap();
+
     if (this.modal && this.modal.element) {
       this.modal.element.off('afterclose.lookup');
       if (typeof this.modal.destroy === 'function') {
         this.modal.destroy();
       }
     }
-    this.element.off('keyup.lookup');
-    this.icon.off('click.lookup');
 
-    this.icon.remove();
-    this.element.unwrap();
+    $.removeData(this.element[0], COMPONENT_NAME);
   }
 };
 

@@ -218,6 +218,10 @@ ColorPicker.prototype = {
       this.disable();
     }
 
+    if (this.element.is(':disabled') && this.container) {
+      this.container.closest('.field').addClass('is-disabled');
+    }
+
     if (this.element.prop('readonly')) {
       this.readonly();
     }
@@ -380,6 +384,12 @@ ColorPicker.prototype = {
         this.element.parent().removeClass('is-open');
         this.isPickerOpen = false;
 
+        /**
+        *  Fires after the color picker popup is closed
+        * @event listclosed
+        * @memberof ColorPicker
+        * @property {object} event The jquery event object
+        */
         this.element.trigger('listclosed', 'select');
       })
       .on('selected.colorpicker', (e, item) => {
@@ -387,6 +397,13 @@ ColorPicker.prototype = {
           this.setColor(item.data('value'), item.data('label'));
         }
         this.element.focus();
+
+        /**
+        *  Fires after the color picker is changed
+        * @event change
+        * @memberof ColorPicker
+        * @property {object} event The jquery event object
+        */
         this.element.trigger('change');
       });
 
@@ -421,7 +438,7 @@ ColorPicker.prototype = {
     if (s.showLabel && label === s.clearableText) {
       this.setValueOnField({ hex: colorHex, label: s.clearableText, isEmpty: true });
       return;
-    } else if (!isValidHex) {
+    } if (!isValidHex) {
       if (!s.showLabel) {
         colorHex = colorHex !== '#' ? colorHex : '';
         this.setValueOnField({ hex: colorHex, invalid: true });
@@ -603,6 +620,7 @@ ColorPicker.prototype = {
   */
   disable() {
     this.element.prop('disabled', true);
+
     if (!this.settings.placeIn) {
       this.element.parent().addClass('is-disabled');
     }
@@ -648,7 +666,7 @@ ColorPicker.prototype = {
   rgb2hex(rgb) {
     if (!rgb || rgb.search('rgb') === -1) {
       return rgb;
-    } else if (rgb === 'rgba(0, 0, 0, 0)') {
+    } if (rgb === 'rgba(0, 0, 0, 0)') {
       return 'transparent';
     }
 

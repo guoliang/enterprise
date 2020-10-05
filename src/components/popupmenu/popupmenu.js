@@ -13,6 +13,9 @@ import '../place/place.jquery';
 // Component Name
 const COMPONENT_NAME = 'popupmenu';
 
+// Popupmenu Trigger Types
+const triggerTypes = ['click', 'rightClick', 'immediate', 'manual'];
+
 /**
  * Responsive Popup Menu Control aka Context Menu when doing a right click action.
  * @class PopupMenu
@@ -29,6 +32,7 @@ const COMPONENT_NAME = 'popupmenu';
  * @param {string} [settings.triggerSelect]  If false select event will not be triggered.
  * @param {string} [settings.removeOnDestroy] Dispose of the menu from the DOM on destroy
  * @param {string} [settings.showArrow]  If true you can explicitly set an arrow on the menu.
+ * @param {string} [settings.stretchToWidestMenuItem] Find the widest menu element and stretch the width to that element.
  * @param {boolean|function} [settings.returnFocus]  If set to false, focus will not be
   returned to the calling element. Can also be defined as a callback that can determine how
   to return focus.  It usually should be for accessibility purposes.
@@ -43,7 +47,7 @@ const COMPONENT_NAME = 'popupmenu';
 
 const POPUPMENU_DEFAULTS = {
   menu: null,
-  trigger: 'click',
+  trigger: triggerTypes[0],
   autoFocus: true,
   mouseFocus: true,
   attachToBody: true,
@@ -115,6 +119,21 @@ PopupMenu.prototype = {
    */
   get isOpen() {
     return DOM.hasClass(this.element[0], 'is-open');
+  },
+
+  /**
+   * @returns {boolean} whether or not the popupmenu trigger, or an item within the
+   * popupmenu, currently has focus.
+   */
+  get isFocused() {
+    const active = document.activeElement;
+    const triggerIsActive = this.element.is(active);
+    const menuIsActive = this.menu && this.menu.length && this.menu[0].contains(active);
+
+    if (triggerIsActive || menuIsActive) {
+      return true;
+    }
+    return false;
   },
 
   /**
@@ -225,6 +244,7 @@ PopupMenu.prototype = {
             this.menu.attr('id', `popupmenu-${this.id}`);
             id = this.menu.attr('id');
           }
+          triggerId = this.element.attr('id');
           break;
         default:
           break;
@@ -263,7 +283,8 @@ PopupMenu.prototype = {
 
     if (!this.menu.is('.popupmenu')) {
       this.menu.addClass('popupmenu')
-        .attr('role', (this.settings.ariaListbox ? 'listbox' : 'menu'));
+        .attr('role', (this.settings.ariaListbox ? 'listbox' : 'menu'))
+        .attr('aria-labelledby', triggerId);
     }
 
     // Always store a reference to the trigger element under jQuery data.
@@ -337,8 +358,7 @@ PopupMenu.prototype = {
     }
 
     // If inside of a ".field-short" container, make smaller
-    const addFieldShort = this.element.closest('.field-short').length > 0 ||
-          this.element.closest('.form-layout-compact').length > 0;
+    const addFieldShort = this.element.closest('.field-short').length > 0;
     this.menu[addFieldShort ? 'addClass' : 'removeClass']('popupmenu-short');
 
     // If button is part of a header/masthead or a container using the "alternate"
@@ -361,13 +381,7 @@ PopupMenu.prototype = {
     // If `settings.stretchToWidestMenuItem` is true, the trigger element will be sized
     // to match the size of the menu's largest item.
     if (this.settings.stretchToWidestMenuItem) {
-      const btnStyle = window.getComputedStyle(this.element[0]);
-      let padding = 0;
-      if (btnStyle && btnStyle.getPropertyValue('padding-left')) {
-        padding = parseInt(btnStyle.getPropertyValue('padding-left'), 10) + parseInt(btnStyle.getPropertyValue('padding-right'), 10);
-      }
-
-      this.element.width(parseInt(this.getMaxMenuWidth(), 10) - padding);
+      this.element.width(parseInt(this.getMaxMenuWidth(), 10));
     }
   },
 
@@ -578,7 +592,7 @@ PopupMenu.prototype = {
       }
 
       const a = li.children('a');
-      const icon = a.children('.icon:not(.close):not(.icon-dropdown)');
+      const icon = a.children('.icon:not(.close):not(.icon-dropdown):not(.image-user-status .icon)');
       const id = a.attr('id');
 
       liData.text = a.text().trim();
@@ -667,17 +681,19 @@ PopupMenu.prototype = {
     const lis = contextElement.find('li:not(.heading):not(.separator)');
     let hasIcons = false;
     contextElement[0].setAttribute('role', 'menu');
+    contextElement[0].setAttribute('aria-labelledby', this.element.attr('id'));
 
     lis.each((i, li) => {
       const a = $(li).children('a')[0]; // TODO: do this better when we have the infrastructure
       let span = $(a).children('span')[0];
       let submenu = $(li).children('ul')[0];
-      const icon = $(li).find('.icon:not(.close):not(.icon-dropdown)');
+      const icon = $(li).find('.icon:not(.close):not(.icon-dropdown):not(.image-user-status .icon)');
       const submenuWrapper = $(li).children('.wrapper')[0];
 
-      li.setAttribute('role', (self.settings.ariaListbox ? 'option' : 'menuitem'));
+      li.setAttribute('role', 'none');
 
       if (a) {
+        a.setAttribute('role', (self.settings.ariaListbox ? 'option' : 'menuitem'));
         a.setAttribute('tabindex', '-1');
 
         // disabled menu items, by prop and by className
@@ -699,7 +715,7 @@ PopupMenu.prototype = {
           submenu.classList.add('popupmenu');
         }
         if (submenuWrapper instanceof HTMLElement) {
-          li.className += `${DOM.classNameExists(li) ? ' ' : ''}submenu`;
+          li.className += `${DOM.hasAnyClass(li) ? ' ' : ''}submenu`;
           submenu = $(submenuWrapper).children('ul')[0];
           if (submenu instanceof HTMLElement) {
             submenu.classList.add('popupmenu');
@@ -1202,9 +1218,9 @@ PopupMenu.prototype = {
         }
 
         // Down
-        if ((!isPicker && key === 40)
-          || (isPicker && key === (Locale.isRTL() ? 37 : 39))
-          && (!isAutocomplete)) {
+        if ((!isPicker && key === 40) ||
+          (isPicker && key === (Locale.isRTL() ? 37 : 39)) &&
+          (!isAutocomplete)) {
           e.stopPropagation();
           e.preventDefault();
 
@@ -1557,6 +1573,14 @@ PopupMenu.prototype = {
     const wrapper = this.menu.parent('.popupmenu-wrapper');
     this.wrapperPlace.setArrowPosition(e, placementObj, wrapper);
 
+    // Check if colorpicker has scrollbar
+    // Use CSS class to modify width of popupmenu.
+    if (placementObj.height < this.menu[0].offsetHeight) {
+      if (this.menu[0].classList.contains('colorpicker')) {
+        this.menu[0].classList.add('has-scrollbar');
+      }
+    }
+
     if (placementObj.height) {
       wrapper[0].style.height = '';
       this.menu[0].style.height = (placementObj.height) + (/(px|%)/i.test(`${placementObj.height}`) ? '' : 'px');
@@ -1829,18 +1853,21 @@ PopupMenu.prototype = {
       }
 
       $(window).on('scroll.popupmenu', () => {
-        self.close();
+        setTimeout(() => {
+          self.close();
+        }, 150);
       });
 
       $('.datagrid-wrapper').on('scroll.popupmenu', () => {
-        self.close();
+        setTimeout(() => {
+          self.close();
+        }, 150);
       });
 
       $('.scrollable, .modal.is-visible .modal-body-wrapper').on('scroll.popupmenu', () => {
-        const delay = self.isInViewport(self.element[0]) ? 0 : 150;
         setTimeout(() => {
           self.close();
-        }, delay);
+        }, 150);
       });
 
       /**
@@ -1935,19 +1962,6 @@ PopupMenu.prototype = {
         self.element.triggerHandler('afteropen', [self.menu]);
       }, 1);
     }
-  },
-
-  /**
-   * Checks if given element is all in viewport
-   * @private
-   * @param {HTMLElement} elem an HTML element to check
-   * @returns {boolean} true if given element is all in viewport
-   */
-  isInViewport(elem) {
-    const b = elem.getBoundingClientRect();
-    return b.top > 0 && b.left > 0 &&
-      b.bottom < (window.innerHeight || document.documentElement.clientHeight) &&
-      b.right < (window.innerWidth || document.documentElement.clientWidth);
   },
 
   /**
@@ -2154,7 +2168,7 @@ PopupMenu.prototype = {
     const returnObj = [anchor];
 
     // If the entire menu is "selectable", place the checkmark where it's supposed to go.
-    if (parent.hasClass('is-selectable') || singleMenu || singleSection) {
+    if ((parent.hasClass('is-selectable') && !anchor.find('.icon').length) || singleMenu || singleSection) {
       parent.prevUntil('.heading, .separator').add(parent.nextUntil('.heading, .separator')).removeClass('is-checked');
       parent.addClass('is-checked');
       returnObj.push('selected');
@@ -2413,6 +2427,7 @@ PopupMenu.prototype = {
     if (document.activeElement && document.activeElement.tagName === 'INPUT') {
       return;
     }
+
     if (this.element) {
       this.element.focus();
     }

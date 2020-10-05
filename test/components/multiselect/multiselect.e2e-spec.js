@@ -170,14 +170,14 @@ describe('Multiselect example-index tests', () => {
         .wait(protractor.ExpectedConditions.presenceOf(multiselectEl), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(multiselectEl, 'multiselect-init')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(multiselectEl, 'multiselect-init')).toEqual(0);
 
       await clickOnMultiselect();
       await browser.driver
         .wait(protractor.ExpectedConditions.presenceOf(multiselectElList), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(multiselectElList, 'multiselect-open')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(multiselectElList, 'multiselect-open')).toEqual(0);
     });
   }
 
@@ -200,10 +200,10 @@ describe('Multiselect example-index tests', () => {
     await browser.driver
       .wait(protractor.ExpectedConditions.presenceOf(multiselectEl), config.waitsFor);
 
-    expect(await element.all(by.className('is-disabled')).first().getAttribute('disabled')).toBeTruthy();
+    expect(await element.all(by.css('.is-disabled'))).toBeTruthy();
     await multiselectEl.click();
 
-    expect(await element.all(by.className('is-disabled')).first().getAttribute('disabled')).toBeTruthy();
+    expect(await element.all(by.css('.is-disabled'))).toBeTruthy();
   });
 });
 
@@ -280,6 +280,33 @@ describe('Multiselect typeahead-reloading tests', () => {
     await utils.setPage('/components/multiselect/test-reload-typeahead');
   });
 
+  // Added to check highlighting of text characters
+  // See Github #4141
+  if (utils.isChrome() && utils.isCI()) {
+    it('Highlights matched filter terms and should not visually regress', async () => {
+      const multiselectEl = await element(by.css('div.dropdown'));
+      await browser.driver
+        .wait(protractor.ExpectedConditions.presenceOf(multiselectEl), config.waitsFor);
+      await browser.driver.sleep(config.sleepShort);
+
+      // Open the list
+      await multiselectEl.sendKeys(protractor.Key.ARROW_DOWN);
+      await browser.driver
+        .wait(protractor.ExpectedConditions.presenceOf(await element(by.css('.dropdown.is-open'))), config.waitsFor);
+      const multiselectSearchEl = await element(by.id('dropdown-search'));
+
+      // Filter for "New"
+      await multiselectSearchEl.sendKeys('New');
+      await browser.driver.sleep(config.sleep);
+
+      // Find the list element
+      const listEl = await element(by.css('.dropdown-list.multiple'));
+
+      // Make sure the matching text is highlighted and all results contain the match
+      expect(await browser.imageComparison.checkElement(listEl, 'multiselect-highlight-filtered')).toEqual(0);
+    });
+  }
+
   if (!utils.isSafari()) {
     // Edited for #920
     it('Should make ajax calls properly on typeahead for multiple items', async () => {
@@ -341,26 +368,179 @@ describe('Multiselect placeholder tests', () => {
   });
 });
 
-describe('Multiselect with Tags tests', () => {
-  it('standard example should not visually regress', async () => {
-    await utils.setPage('/components/multiselect/example-index');
+describe('Multiselect header strings tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/multiselect/test-header-strings');
 
-    const multiselectStandardEl = await element(by.css('#multi-optgroup-tagged + .dropdown-wrapper div.dropdown'));
+    const multiselectEl = await element(by.css('select.multiselect + .dropdown-wrapper div.dropdown'));
     await browser.driver
-      .wait(protractor.ExpectedConditions.presenceOf(multiselectStandardEl), config.waitsFor);
-    await browser.driver.sleep(config.sleepShort);
-
-    expect(await browser.protractorImageComparison.checkElement(multiselectStandardEl, 'multiselect-tags-standard')).toEqual(0);
+      .wait(protractor.ExpectedConditions.presenceOf(multiselectEl), config.waitsFor);
   });
 
-  it('disabled example should not visually regress', async () => {
-    await utils.setPage('/components/multiselect/example-index');
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
 
-    const multiselectDisabledEl = await element(by.css('#multi-disabled-tagged + .dropdown-wrapper div.dropdown'));
+  it('Should have custom header strings', async () => {
+    const selector = '#dropdown-list .group-label';
+    await clickOnMultiselect();
     await browser.driver
-      .wait(protractor.ExpectedConditions.presenceOf(multiselectDisabledEl), config.waitsFor);
-    await browser.driver.sleep(config.sleepShort);
+      .wait(protractor.ExpectedConditions.presenceOf(element(by.className('is-open'))), config.waitsFor);
 
-    expect(await browser.protractorImageComparison.checkElement(multiselectDisabledEl, 'multiselect-tags-disabled')).toEqual(0);
+    expect(await element(by.className('is-open')).isDisplayed()).toBe(true);
+    expect(await element.all(by.css(selector)).get(0).getText()).toBe('Chosen');
+    expect(await element.all(by.css(selector)).get(1).getText()).toBe('Available to choose');
+  });
+});
+
+describe('Multiselect with Tags tests', () => {
+  if (utils.isChrome() && utils.isCI()) {
+    it('Standard example should not visually regress', async () => {
+      await utils.setPage('/components/multiselect/example-index');
+
+      const multiselectStandardEl = await element(by.css('#multi-optgroup-tagged + .dropdown-wrapper div.dropdown'));
+      await browser.driver
+        .wait(protractor.ExpectedConditions.presenceOf(multiselectStandardEl), config.waitsFor);
+      await browser.driver.sleep(config.sleepShort);
+
+      expect(await browser.imageComparison.checkElement(multiselectStandardEl, 'multiselect-tags-standard')).toEqual(0);
+    });
+
+    it('Disabled example should not visually regress', async () => {
+      await utils.setPage('/components/multiselect/example-index');
+
+      const multiselectDisabledEl = await element(by.css('#multi-disabled-tagged + .dropdown-wrapper div.dropdown'));
+      await browser.driver
+        .wait(protractor.ExpectedConditions.presenceOf(multiselectDisabledEl), config.waitsFor);
+      await browser.driver.sleep(config.sleepShort);
+
+      expect(await browser.imageComparison.checkElement(multiselectDisabledEl, 'multiselect-tags-disabled')).toEqual(0);
+    });
+  }
+});
+
+describe('Multiselect `showSearchUnderSelected` tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/multiselect/example-search-under-selected?layout=nofrills');
+  });
+
+  it('should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  if (utils.isChrome() && utils.isCI()) {
+    it('should not visually regress', async () => {
+      const windowSize = await browser.driver.manage().window().getSize();
+      await browser.driver.manage().window().setSize(400, 640);
+
+      const multiEl = await element(by.css('div.dropdown'));
+      await browser.driver
+        .wait(protractor.ExpectedConditions.visibilityOf(multiEl), config.waitsFor);
+
+      // Just open the Dropdown
+      await multiEl.click();
+      const multiListEl = await element(by.css('#dropdown-list'));
+      await browser.driver
+        .wait(protractor.ExpectedConditions.visibilityOf(multiListEl), config.waitsFor);
+
+      // The test environment creates an incorrect baseline with the standard dropdown icon unless we
+      // type a space and backspace first (simulating a search).
+      const inputEl = await element(by.css('#dropdown-search'));
+      await inputEl.click();
+      await inputEl.sendKeys('n');
+      await browser.driver.sleep(config.sleep);
+      await inputEl.sendKeys(protractor.Key.BACK_SPACE);
+      await browser.driver.sleep(config.sleep);
+
+      // Ensure the Searchfield is underneath
+      expect(await browser.imageComparison.checkScreen('multiselect-search-under-selected')).toEqual(0);
+
+      await browser.driver.manage().window().setSize(windowSize.width, windowSize.height);
+    });
+  }
+});
+
+describe('Multiselect select all behavior tests', () => {
+  if (utils.isChrome() && utils.isCI()) {
+    it('should not visually regress', async () => {
+      await utils.setPage('/components/multiselect/test-select-all-tags.html?layout=nofrills');
+
+      // Resize page to fit a "full" Multiselect
+      const windowSize = await browser.driver.manage().window().getSize();
+      await browser.driver.manage().window().setSize(500, 800);
+
+      // Find/Open the Multiselect
+      const multiEl = await element(by.css('div.dropdown'));
+      await browser.driver
+        .wait(protractor.ExpectedConditions.visibilityOf(multiEl), config.waitsFor);
+      await multiEl.click();
+      const multiListEl = await element(by.css('#dropdown-list'));
+      await browser.driver
+        .wait(protractor.ExpectedConditions.visibilityOf(multiListEl), config.waitsFor);
+
+      // Click "Select All"
+      await element(by.css('#dropdown-select-all-anchor')).click();
+
+      // Snap a photo
+      expect(await browser.imageComparison.checkScreen('multiselect-select-all-tags')).toEqual(0);
+
+      // Put page back to original size
+      await browser.driver.manage().window().setSize(windowSize.width, windowSize.height);
+    });
+  }
+
+  it('should not allow the tag list to become taller than the `tagListMaxHeight` setting', async () => {
+    await utils.setPage('/components/multiselect/test-select-all-tags.html?layout=nofrills');
+
+    // Find/Open the Multiselect
+    const multiEl = await element(by.css('div.dropdown'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(multiEl), config.waitsFor);
+    await multiEl.click();
+    const multiListEl = await element(by.css('#dropdown-list'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(multiListEl), config.waitsFor);
+
+    // Click "Select All"
+    await element(by.css('#dropdown-select-all-anchor')).click();
+    await browser.driver.sleep(config.sleep);
+
+    expect(await element(by.css('div.dropdown > .tag-list')).getAttribute('style')).toContain('max-height: 120px;');
+  });
+
+  it('should not display an option for selecting all items if no items are present', async () => {
+    await utils.setPage('/components/multiselect/test-select-all-no-opts.html?layout=nofrills');
+
+    // Find/Open the Multiselect
+    const multiEl = await element(by.css('div.dropdown'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(multiEl), config.waitsFor);
+    await multiEl.click();
+    const multiListEl = await element(by.css('#dropdown-list'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(multiListEl), config.waitsFor);
+
+    // No checkbox for "Select All" should be present
+    expect(await element(by.css('#dropdown-select-all-anchor')).isPresent()).toBeFalsy();
+  });
+
+  it('should only "Select All" filtered items by default', async () => {
+    await utils.setPage('/components/multiselect/test-select-all-tags.html?layout=nofrills');
+
+    // Find/Open the Multiselect with Typeahead Reloading by pressing "F"
+    const multiEl = await element(by.css('div.dropdown'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(multiEl), config.waitsFor);
+    await multiEl.sendKeys('f');
+    await browser.driver.sleep(config.sleep);
+
+    // Click "Select All"
+    await element(by.css('#dropdown-select-all-anchor')).click();
+    await browser.driver.sleep(config.sleep);
+
+    // Track the number of selected items
+    const selected = await element.all(by.css('.dropdown-option.is-selected')).count();
+
+    expect(selected).toEqual(4);
   });
 });

@@ -63,7 +63,7 @@
       enableTooltips: true,
       filterWhenTyping: false,
       redrawOnResize: false,
-      rowHeight: 'short',
+      rowHeight: 'small',
       selectable: 'multiple',
       showDirty: false
       // toolbar: {title: 'Compressors', actions: true, rowHeight: true, personalize: true}
@@ -90,6 +90,8 @@
 
     setModal = function (opt) {
       opt = $.extend({
+        autoFocus: true,
+        showCloseBtn: true,
         buttons: [{
           text: 'Cancel',
           id: 'modal-button-1',

@@ -27,13 +27,13 @@ describe('Spinbox example-index tests', () => {
         .wait(protractor.ExpectedConditions.presenceOf(spinboxElWrapper), config.waitsFor);
       await browser.driver.sleep(config.sleepLonger);
 
-      expect(await browser.protractorImageComparison.checkElement(spinboxElWrapper, 'spinbox-init')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(spinboxElWrapper, 'spinbox-init')).toEqual(0);
       await spinboxEl.sendKeys(protractor.Key.ARROW_UP);
       await browser.driver
         .wait(protractor.ExpectedConditions.presenceOf(element(by.css('.spinbox-wrapper.is-focused'))), config.waitsFor);
       await browser.driver.sleep(config.sleepLonger);
 
-      expect(await browser.protractorImageComparison.checkElement(spinboxElWrapper, 'spinbox-clicked')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(spinboxElWrapper, 'spinbox-clicked')).toEqual(0);
     });
   }
 
@@ -51,5 +51,58 @@ describe('Spinbox example-index tests', () => {
       .wait(protractor.ExpectedConditions.presenceOf(element(by.css('.spinbox-wrapper.is-focused'))), config.waitsFor);
 
     expect(await spinboxEl.getAttribute('value')).toEqual('1');
+  });
+});
+
+describe('Spinbox Range Tests tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/spinbox/example-range-limits');
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(element(by.id('limited-spinbox-2'))), config.waitsFor);
+  });
+
+  it('Should be able to type in range 100 to 200', async () => {
+    await element(by.id('limited-spinbox-2')).clear();
+    await element(by.id('limited-spinbox-2')).sendKeys('111');
+    await element(by.id('limited-spinbox-2')).sendKeys(protractor.Key.TAB);
+    await browser.driver.sleep(config.sleepShort);
+
+    expect(await element(by.id('limited-spinbox-2')).getAttribute('value')).toEqual('111');
+  });
+
+  it('Should be able to correct down', async () => {
+    await element(by.id('limited-spinbox-2')).clear();
+    await element(by.id('limited-spinbox-2')).sendKeys('50');
+    await element(by.id('limited-spinbox-2')).sendKeys(protractor.Key.TAB);
+    await browser.driver.sleep(config.sleepShort);
+
+    expect(await element(by.id('limited-spinbox-2')).getAttribute('value')).toEqual('100');
+  });
+
+  it('Should be able to correct up', async () => {
+    await element(by.id('limited-spinbox-2')).clear();
+    await element(by.id('limited-spinbox-2')).sendKeys('250');
+    await element(by.id('limited-spinbox-2')).sendKeys(protractor.Key.TAB);
+    await browser.driver.sleep(config.sleepShort);
+
+    expect(await element(by.id('limited-spinbox-2')).getAttribute('value')).toEqual('200');
+  });
+
+  it('Should be able to correct over', async () => {
+    await element(by.id('limited-spinbox-2')).clear();
+    await element(by.id('limited-spinbox-2')).sendKeys('999');
+    await element(by.id('limited-spinbox-2')).sendKeys(protractor.Key.TAB);
+    await browser.driver.sleep(config.sleepShort);
+
+    expect(await element(by.id('limited-spinbox-2')).getAttribute('value')).toEqual('200');
+  });
+
+  it('Should be able to correct text', async () => {
+    await element(by.id('limited-spinbox-2')).clear();
+    await element(by.id('limited-spinbox-2')).sendKeys('AA999');
+    await element(by.id('limited-spinbox-2')).sendKeys(protractor.Key.TAB);
+    await browser.driver.sleep(config.sleepShort);
+
+    expect(await element(by.id('limited-spinbox-2')).getAttribute('value')).toEqual('200');
   });
 });

@@ -3,7 +3,7 @@ import { utils, math } from '../../utils/utils';
 import { xssUtils } from '../../utils/xss';
 import { renderLoop, RenderLoopItem } from '../../utils/renderloop';
 import { Environment as env } from '../../utils/environment';
-import { Locale } from '../../../src/components/locale/locale';
+import { Locale } from '../locale/locale';
 
 // Component Name
 const COMPONENT_NAME = 'toast';
@@ -103,11 +103,28 @@ Toast.prototype = {
       toast.append(progress);
     }
 
+    container.append(toast);
+    toast.addClass((s.audibleOnly ? 'audible' : 'effect-scale'));
+    toast.append(closeBtn);
+
+    // Add draggable
+    self.createDraggable(toast, container);
+
+    // Get the number of toasts
+    let toastsIndex = container.children().length;
+    this.toastsIndex = toastsIndex;
+
+    // Get the number of unique toast container
+    const toastUniqueContainer = this.element.find('.toast-container');
+    for (let i = 0, len = toastUniqueContainer.children(); i < len.length; i++) {
+      toastsIndex = len.length;
+    }
+
     // Build the RenderLoop integration
     const timer = new RenderLoopItem({
       duration: math.convertDelayToFPS(s.timeout),
       timeoutCallback() {
-        self.remove(toast);
+        self.remove(toast, toastsIndex);
       },
       updateCallback(data) {
         percentage = ((data.duration - data.elapsedTime) / maxHideTime) * 100;
@@ -123,18 +140,24 @@ Toast.prototype = {
     });
     renderLoop.register(timer);
 
-    container.append(toast);
-    toast.addClass((s.audibleOnly ? 'audible' : 'effect-scale'));
-    toast.append(closeBtn);
+    // Clears the toast from the container, removing it from renderLoop and tearing down events
+    function clearToast(targetToast) {
+      timer.destroy(true);
+      self.remove(targetToast, toastsIndex);
+    }
 
-    // Add draggable
-    self.createDraggable(toast, container);
-
-    $(document).on('keydown.toast keyup.toast', (e) => {
+    $(document).on(`keydown.toast-${toastsIndex} keyup.toast-${toastsIndex}`, (e) => {
       e = e || window.event;
-      if (e.ctrlKey && e.altKey && e.keyCode === 80) { // [Control + Alt + P] - Pause/Play toggle
+      const key = e.which || e.keyCode;
+
+      if (e.ctrlKey && key === 80) { // [Control + Alt + P] - Pause/Play toggle
         isPausePlay = e.type === 'keydown';
         timer[isPausePlay ? 'pause' : 'resume']();
+      }
+      if (e.type === 'keydown' && key === 27) { // Escape
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        clearToast(toast);
       }
     });
 
@@ -144,8 +167,7 @@ Toast.prototype = {
     });
 
     closeBtn.on('click.toast', () => {
-      timer.destroy();
-      self.remove(toast);
+      clearToast(toast);
     });
   },
 
@@ -383,13 +405,22 @@ Toast.prototype = {
    * Removes event bindings from the instance.
    * @private
    * @param {jQuery[]|HTMLElement} toast the toast message to be removed bindings
+   * @param {number} [id=undefined] a unique number associated with the toast being removed
    * @returns {this} component instance
    */
-  unbind(toast) {
+  unbind(toast, id) {
     const container = toast.closest('.toast-container');
     container.off('dragstart.toast dragend.toast');
     toast.off('mousedown.toast mouseup.toast touchstart.toast touchend.toast');
     toast.find('.btn-close').off('click.toast');
+
+    if (id !== undefined) {
+      $(document).off([
+        `keydown.toast-${id}`,
+        `keyup.toast-${id}`
+      ].join(' '));
+    }
+
     return this;
   },
 
@@ -397,9 +428,10 @@ Toast.prototype = {
    * Remove the Message and Animate
    * @private
    * @param {jQuery[]|HTMLElement} toast the toast message to be removed
+   * @param {number} [id=undefined] a unique number associated with the toast being removed
    * @returns {void}
    */
-  remove(toast) {
+  remove(toast, id) {
     const removeCallback = () => {
       toast.remove();
       const canDestroy = !$(`#toast-container${this.uniqueId} .toast`).length;
@@ -408,7 +440,7 @@ Toast.prototype = {
       }
     };
 
-    this.unbind(toast);
+    this.unbind(toast, id);
 
     if (this.settings.audibleOnly) {
       removeCallback();
@@ -451,8 +483,12 @@ Toast.prototype = {
         this.remove($(toast));
       });
     }
-    $(document).off('keydown.toast keyup.toast mouseup.toast touchend.toast');
+    $(document).off([
+      'mouseup.toast',
+      'touchend.toast'
+    ].join(' '));
     container.remove();
+    delete this.toastsIndex;
     delete this.uniqueId;
     $.removeData(this.element[0], COMPONENT_NAME);
   }

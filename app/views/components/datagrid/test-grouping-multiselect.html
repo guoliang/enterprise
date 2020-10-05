@@ -45,7 +45,7 @@
 			columns: columns,
 			idProperty: 'id',
 			dataset: data,
-			rowHeight: 'short',
+			rowHeight: 'small',
 			selectable: 'multiple',
       frozenColumns: {
         left: ['selectionCheckbox', 'col0', 'col1']
@@ -53,7 +53,7 @@
 			groupable: {
         fields: ['col0'],
         expanded: true,
-				aggregator: 'sum', //sum, averge, max ect
+				aggregator: 'sum',
 				aggregate: 'col9',
 				groupFooterRow: true,
 				groupFooterRowFormatter: function (idx, row, cell, value, col, item, api) {

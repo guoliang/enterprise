@@ -1,6 +1,8 @@
 // Calendar Toolbar
 //================================================== //
 
+@import '../datepicker/datepicker';
+
 .calendar-toolbar {
   .datepicker {
     @include font-size(16);
@@ -35,9 +37,9 @@
   }
 
   .today {
-    font-size: $theme-size-font-sm;
-    font-weight: $theme-number-font-weight-bold;
-    margin-left: 18px;
+    font-size: $ids-size-font-sm;
+    font-weight: $ids-number-font-weight-bold;
+    margin-left: 14px;
     text-decoration: none;
     top: 1px;
   }
@@ -55,7 +57,7 @@
     > .month,
     > .year {
       color: $datepicker-month-year-color;
-      font-size: $theme-size-font-lg;
+      font-size: $ids-size-font-lg;
       position: relative;
       top: -1px;
     }
@@ -63,7 +65,7 @@
     .btn-monthyear-pane {
       border-radius: 2px;
       color: $datepicker-month-year-color;
-      font-size: $theme-size-font-lg;
+      font-size: $ids-size-font-lg;
       font-weight: 400;
       padding: 4px 5px;
     }
@@ -80,7 +82,7 @@
   // Move the second section to the right
   &.is-alternate {
     .today {
-      left: -10px;
+      left: -6px;
       margin-left: 0;
       position: relative;
     }
@@ -126,6 +128,10 @@ html[dir='rtl'] {
       left: 0;
     }
 
+    .datepicker {
+      padding: 8px 3px 7px 35px;
+    }
+
     .datepicker + .icon {
       margin-right: -15px;
       margin-top: 11px;
@@ -133,11 +139,11 @@ html[dir='rtl'] {
 
     .today {
       left: 0;
-      margin-right: 10px;
+      margin-right: 33px;
     }
 
     #monthview-datepicker-field + .icon {
-      margin-right: -23px;
+      margin-right: -22px;
     }
   }
 

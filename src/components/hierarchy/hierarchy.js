@@ -223,7 +223,7 @@ Hierarchy.prototype = {
         return;
       }
 
-      $('.is-selected').removeClass('is-selected');
+      $('.leaf.is-selected').removeClass('is-selected');
       $(`#${nodeId}`).addClass('is-selected');
 
       // Is collapse event
@@ -290,7 +290,7 @@ Hierarchy.prototype = {
    */
   selectLeaf(nodeId) {
     const leaf = $(`#${nodeId}`);
-    $('.is-selected').removeClass('is-selected');
+    $('.leaf.is-selected').removeClass('is-selected');
     leaf.addClass('is-selected');
 
     const eventInfo = {
@@ -320,6 +320,7 @@ Hierarchy.prototype = {
     const leaf = $(eventInfo.targetInfo.target).closest('.leaf');
     const nodeData = eventInfo.data;
     const popupMenu = $(leaf).find('.popupmenu');
+    const popupMenuControl = popupMenu.data('trigger').data().popupmenu;
     const lineItemsToRemove = popupMenu.find('li').not(':eq(0)');
 
     $(lineItemsToRemove).each((idx, item) => {
@@ -328,6 +329,16 @@ Hierarchy.prototype = {
 
     nodeData.menu.actions = updatedActions;
     popupMenu.append(this.getActionMenuItems(nodeData));
+
+    // Setup flag to prevent double-open
+    popupMenuControl.keydownThenClick = true;
+    popupMenuControl.open();
+
+    popupMenuControl.handleAfterPlace(null, {
+      element: popupMenu.parent(),
+      parent: $(leaf).find('.btn-actions'),
+      placement: 'bottom'
+    });
   },
 
   /**
@@ -376,22 +387,31 @@ Hierarchy.prototype = {
     // Ignoring next line. Eslint expects template literals vs string concat.
     // However template literals break JSON.stringify() in this case
     /* eslint-disable */
-    return `${actions.map(a => `
-      <li data-disabled='${a.disabled}' class='${a.menu ? 'submenu' : ''}'>
-        <a href='${a.url}' data-action-reference='` + JSON.stringify(a.data) + `'>
-          ${a.value}
-          ${a.menu ? '<svg class="arrow icon-dropdown icon" focusable="false" aria-hidden="true" role="presentation"><use href="#icon-dropdown"></use></svg>' : ''}
-        </a>
-        ${a.menu ? `<div class="wrapper" role="application" aria-hidden="true">
-          <ul class="popupmenu">
-            ${a.menu.map(i => `
-            <li data-disabled='${a.disabled}'>
-              <a href='${a.url}' data-action-reference='` + JSON.stringify(a.data) + `'>${i.value}</a>
-            </li>`).join('')}
-          </ul>
-        </div>` : ''}
-      </li>`).join('')}`;
+    const actionMarkup = actions.map(a => {
+      if (a.hasOwnProperty('data')) {
+        if (a.data.type === 'separator') {
+          return `<li class="separator"></li>`
+        }
+      }
+      return `
+        <li data-disabled='${a.disabled}' class='${a.menu ? 'submenu' : ''}'>
+          <a href='${a.url}' data-action-reference='` + JSON.stringify(a.data) + `'>
+            ${a.value}
+            ${a.menu ? '<svg class="arrow icon-dropdown icon" focusable="false" aria-hidden="true" role="presentation"><use href="#icon-dropdown"></use></svg>' : ''}
+          </a>
+          ${a.menu ? `<div class="wrapper" role="application" aria-hidden="true">
+            <ul class="popupmenu">
+              ${a.menu.map(i => `
+              <li data-disabled='${a.disabled}'>
+                <a href='${a.url}' data-action-reference='` + JSON.stringify(a.data) + `'>${i.value}</a>
+              </li>`).join('')}
+            </ul>
+          </div>` : ''}
+        </li>`
+    }).join('');
     /* eslint-enable */
+
+    return actionMarkup;
   },
 
   /**

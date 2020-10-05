@@ -25,9 +25,10 @@
           <li><a href="#">Option Three</a></li>
           <li class="separator single-selectable-section"></li>
           <li class="heading">Row Height</li>
-          <li class="is-selectable"><a data-option="row-short" href="#">Short</a></li>
-          <li class="is-selectable"><a data-option="row-medium" href="#">Medium</a></li>
-          <li class="is-selectable is-checked"><a data-option="row-normal" href="#">Normal</a></li>
+          <li class="is-selectable"><a data-option="row-extra-small" href="#" data-translate="text">ExtraSmall</a></li>
+          <li class="is-selectable"><a data-option="row-small" href="#" data-translate="text">Small</a></li>
+          <li class="is-selectable"><a data-option="row-medium" href="#" data-translate="text">Medium</a></li>
+          <li class="is-selectable is-checked"><a data-option="row-large" href="#" data-translate="text">Large</a></li>
         </ul>
 
       </div>
@@ -84,7 +85,7 @@
               columns: lookupColumns,
               dataset: lookupData,
               selectable: 'single', //multiselect or single
-              toolbar: {title: 'Products', results: true, dateFilter: false ,keywordFilter: false, actions: true, views: true , rowHeight: true}
+              toolbar: {title: 'Find a Compressor', results: true, dateFilter: false ,keywordFilter: false, actions: true, views: true , rowHeight: true}
             }
           };
 
@@ -107,15 +108,15 @@
 
         //Define Columns for the Grid.
         columns.push({ id: 'productName', name: 'Product Name', sortable: false, field: 'productName', formatter: Formatters.Hyperlink, editor: Editors.Input});
-        columns.push({ id: 'productId', name: 'Product Id', field: 'productId', formatter: Formatters.Lookup, editor: Editors.Lookup, minWidth: 75, textOverflow: 'ellipsis', maxLength: 7, validate: 'required customRule', editorOptions: lookupOptions });
-        columns.push({ id: 'price', name: 'Price', field: 'price', align: 'right', formatter: Formatters.Decimal, numberFormat: {minimumFractionDigits: 3, maximumFractionDigits: 3}, editor: Editors.Input, mask: '###.000'});
-        columns.push({ id: 'orderDate', name: 'Order Date', field: 'orderDate', formatter: Formatters.Date, editor: Editors.Date});
+        columns.push({ id: 'productId', name: 'Product Id', field: 'productId', formatter: Formatters.Lookup, minWidth: 100, editor: Editors.Lookup,textOverflow: 'ellipsis', maxLength: 7, validate: 'required customRule', editorOptions: lookupOptions });
+        columns.push({ id: 'price', name: 'Price', field: 'price', align: 'right', formatter: Formatters.Decimal, minWidth: 100, numberFormat: {minimumFractionDigits: 3, maximumFractionDigits: 3}, editor: Editors.Input, mask: '###.000'});
+        columns.push({ id: 'orderDate', name: 'Order Date', field: 'orderDate', formatter: Formatters.Date, minWidth: 100, editor: Editors.Date});
 
         //Init and get the api for the grid
         grid = $('#datagrid').datagrid({
           columns: columns,
           stretchColumn: 'productName',
-          stretchColumnOnChange: true,
+          // stretchColumnOnChange: true,
           dataset: data,
           editable: true,
           toolbar: {keywordFilter: true, results: true}

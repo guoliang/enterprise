@@ -52,10 +52,10 @@ describe('Tree example-index tests', () => {
       const link = await element.all(by.css('a[role="treeitem"]')).first();
       await link.click();
 
-      const containerEl = await element(by.id('maincontent'));
+      const containerEl = await element(by.css('.two-column'));
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(containerEl, 'tree-index')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(containerEl, 'tree-index')).toEqual(0);
     });
   }
 });
@@ -71,7 +71,7 @@ describe('Tree badges tests', () => {
     expect(await element.all(by.css('.tree li.folder a[role="treeitem"] .tree-badge.round')).count()).toBe(3);
     expect(await element.all(by.css('.tree li.folder a[role="treeitem"] .tree-badge.info')).count()).toBe(2);
     expect(await element.all(by.css('.tree li.folder a[role="treeitem"] .tree-badge.alert')).count()).toBe(1);
-    expect(await element.all(by.css('.tree li a[role="treeitem"] .tree-badge.good')).count()).toBe(1);
+    expect(await element.all(by.css('.tree li a[role="treeitem"] .tree-badge.good')).count()).toBe(0);
   });
 });
 
@@ -156,6 +156,19 @@ describe('Tree select-multiple tests', () => {
 
     expect(await element.all(by.css('.tree li')).get(1).getAttribute('class')).toContain('is-selected');
     expect(await element.all(by.css('.tree li.is-selected a[role="treeitem"] .tree-checkbox')).count()).toBe(3);
+  });
+
+  it('Should expand independently', async () => {
+    let visibleNodes = await element.all(by.css('.tree li')).filter(node => node.isDisplayed());
+
+    expect(visibleNodes.length).toEqual(13);
+    const testNode = await element(by.css(('#leadership svg')));
+    await browser.actions().mouseMove(testNode).perform();
+    await browser.actions().click(testNode).perform();
+    await browser.driver.sleep(config.sleep);
+    visibleNodes = await element.all(by.css('.tree li')).filter(node => node.isDisplayed());
+
+    expect(visibleNodes.length).toEqual(9);
   });
 
   it('Should select all children nodes', async () => {
@@ -305,5 +318,253 @@ describe('Tree checkbox tests', () => {
   it('Should display checkbox for particular node', async () => {
     expect(await element.all(by.css('.tree li.folder.is-open a[role="treeitem"]')).count()).toBe(10);
     expect(await element.all(by.css('.tree li.folder.is-open ul.folder.is-open a[role="treeitem"] .tree-checkbox')).count()).toBe(2);
+  });
+});
+
+describe('Tree update and remove node tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/tree/test-update-node-with-children');
+  });
+  const sel = { nodes: '.tree li a[role="treeitem"]' };
+  sel.new2 = `${sel.nodes}#new2`;
+  sel.lineMgr = `${sel.nodes}#line-mgr`;
+
+  it('Should update node', async () => {
+    expect(await element.all(by.css(sel.nodes)).count()).toBe(6);
+    expect(await element.all(by.css(sel.lineMgr)).count()).toBe(0);
+    await element(by.id('btn-update-node')).click();
+
+    expect(await element.all(by.css(sel.nodes)).count()).toBe(7);
+    expect(await element.all(by.css(sel.lineMgr)).count()).toBe(1);
+  });
+
+  it('Should remove node', async () => {
+    expect(await element.all(by.css(sel.nodes)).count()).toBe(6);
+    expect(await element.all(by.css(sel.new2)).count()).toBe(1);
+    await element(by.id('btn-remove-node')).click();
+
+    expect(await element.all(by.css(sel.nodes)).count()).toBe(5);
+    expect(await element.all(by.css(sel.new2)).count()).toBe(0);
+  });
+});
+
+describe('Tree expand target tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/tree/test-expand-target');
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('Should toggle by clicked on icon only', async () => {
+    const link = await element(by.id('node2'));
+    const icon = await link.element(by.css('.icon-tree'));
+    const text = await link.element(by.css('.tree-text'));
+
+    expect(await link.getAttribute('class')).not.toContain('is-selected');
+    await icon.click();
+
+    expect(await link.getAttribute('class')).not.toContain('is-selected');
+    await text.click();
+
+    expect(await link.getAttribute('class')).toContain('is-selected');
+  });
+});
+
+describe('Tree toggle icon and children count tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/tree/test-toggle-icon-and-count');
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('Should toggle by clicked on icon only and show children count', async () => {
+    const link = await element(by.id('node2'));
+    const iconTreeUse = await link.element(by.css('.icon-tree use'));
+    const iconExpandTarget = await link.element(by.css('.icon-expand-target'));
+    const text = await link.element(by.css('.tree-text'));
+    const childrenCount = await link.element(by.css('.tree-children-count-text'));
+    const ul = await element(by.css('#node2 + ul'));
+
+    expect(await childrenCount.getText()).toEqual('3');
+    expect(await iconTreeUse.getAttribute('href')).toEqual('#icon-cloud');
+    expect(await link.getAttribute('class')).not.toContain('is-selected');
+    expect(await ul.getAttribute('class')).toContain('is-open');
+    await iconExpandTarget.click();
+    await browser.driver.sleep(config.sleep);
+
+    expect(await childrenCount.getText()).toEqual('3');
+    expect(await iconTreeUse.getAttribute('href')).toEqual('#icon-cloud');
+    expect(await link.getAttribute('class')).not.toContain('is-selected');
+    expect(await ul.getAttribute('class')).not.toContain('is-open');
+    await text.click();
+    await browser.driver.sleep(config.sleep);
+
+    expect(await childrenCount.getText()).toEqual('3');
+    expect(await iconTreeUse.getAttribute('href')).toEqual('#icon-cloud');
+    expect(await link.getAttribute('class')).toContain('is-selected');
+    expect(await ul.getAttribute('class')).not.toContain('is-open');
+  });
+});
+
+describe('Tree toggle icon and children count async tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/tree/test-toggle-icon-and-count-ajax');
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('Should toggle by clicked on icon only and show children async count', async () => {
+    const link = await element(by.id('node2'));
+    const iconExpandTarget = await link.element(by.css('.icon-expand-target'));
+    const text = await link.element(by.css('.tree-text'));
+    const childrenCount = await link.element(by.css('.tree-children-count-text'));
+    const ul = await element(by.css('#node2 + ul'));
+
+    expect(await childrenCount.getText()).toEqual('3');
+    expect(await link.getAttribute('class')).not.toContain('is-selected');
+    expect(await ul.getAttribute('class')).not.toContain('is-open');
+    expect(await ul.all(by.css('li')).count()).toEqual(0);
+
+    await iconExpandTarget.click();
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(await element(by.css('#node2 + ul.is-open'))), config.waitsFor);
+    await browser.driver.sleep(config.sleep);
+
+    expect(await childrenCount.getText()).toEqual('3');
+    expect(await link.getAttribute('class')).not.toContain('is-selected');
+    expect(await ul.getAttribute('class')).toContain('is-open');
+    expect(await ul.all(by.css('li')).count()).toEqual(4);
+    expect(await element(by.css('#new2 .tree-children-count-text')).getText()).toEqual('1');
+    expect(await element(by.css('#new3 .tree-children-count-text')).getText()).toEqual('3');
+    await text.click();
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(await element(by.css('#node2 + ul.is-open'))), config.waitsFor);
+    await browser.driver.sleep(config.sleep);
+
+    expect(await childrenCount.getText()).toEqual('3');
+    expect(await link.getAttribute('class')).toContain('is-selected');
+    expect(await ul.getAttribute('class')).toContain('is-open');
+  });
+});
+
+describe('Tree toggle icon and children count markup tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/tree/test-toggle-icon-and-count-markup');
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('Should toggle by clicked on icon only and show children markup count', async () => {
+    const link = await element(by.id('public'));
+    const iconExpandTarget = await link.element(by.css('.icon-expand-target'));
+    const text = await link.element(by.css('.tree-text'));
+    const childrenCount = await link.element(by.css('.tree-children-count-text'));
+    const ul = await element(by.css('#public + ul'));
+
+    expect(await childrenCount.getText()).toEqual('1');
+    expect(await link.getAttribute('class')).not.toContain('is-selected');
+    expect(await ul.getAttribute('class')).toContain('is-open');
+    await iconExpandTarget.click();
+    await browser.driver.sleep(config.sleep);
+
+    expect(await childrenCount.getText()).toEqual('1');
+    expect(await link.getAttribute('class')).not.toContain('is-selected');
+    expect(await ul.getAttribute('class')).not.toContain('is-open');
+    await text.click();
+    await browser.driver.sleep(config.sleep);
+
+    expect(await childrenCount.getText()).toEqual('1');
+    expect(await link.getAttribute('class')).toContain('is-selected');
+    expect(await ul.getAttribute('class')).not.toContain('is-open');
+  });
+});
+
+describe('Tree toggle icon and children count edit auto tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/tree/test-toggle-icon-and-count-edit-auto');
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('Should toggle by clicked on icon only and show children edit auto count', async () => {
+    const link = await element(by.id('public'));
+    const iconExpandTarget = await link.element(by.css('.icon-expand-target'));
+    const text = await link.element(by.css('.tree-text'));
+    const childrenCount = await link.element(by.css('.tree-children-count-text'));
+    const ul = await element(by.css('#public + ul'));
+
+    expect(await childrenCount.getText()).toEqual('1');
+    expect(await element(by.css('#leadership .tree-children-count-text')).getText()).toEqual('4');
+    expect(await element(by.css('#new1 .tree-children-count-text')).getText()).toEqual('2');
+    expect(await element(by.css('#new2 .tree-children-count-text')).getText()).toEqual('3');
+    expect(await link.getAttribute('class')).not.toContain('is-selected');
+    expect(await ul.getAttribute('class')).toContain('is-open');
+    await iconExpandTarget.click();
+    await browser.driver.sleep(config.sleep);
+
+    expect(await childrenCount.getText()).toEqual('1');
+    expect(await element(by.css('#new1 .tree-children-count-text')).getText()).toEqual('2');
+    expect(await element(by.css('#new2 .tree-children-count-text')).getText()).toEqual('3');
+    expect(await link.getAttribute('class')).not.toContain('is-selected');
+    expect(await ul.getAttribute('class')).not.toContain('is-open');
+    await text.click();
+    await browser.driver.sleep(config.sleep);
+
+    expect(await childrenCount.getText()).toEqual('1');
+    expect(await element(by.css('#new1 .tree-children-count-text')).getText()).toEqual('2');
+    expect(await element(by.css('#new2 .tree-children-count-text')).getText()).toEqual('3');
+    expect(await link.getAttribute('class')).toContain('is-selected');
+    expect(await ul.getAttribute('class')).not.toContain('is-open');
+  });
+});
+
+describe('Tree toggle icon and children count edit manually tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/tree/test-toggle-icon-and-count-edit-manually');
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('Should toggle by clicked on icon only and show children edit manually count', async () => {
+    const link = await element(by.id('public'));
+    const iconExpandTarget = await link.element(by.css('.icon-expand-target'));
+    const text = await link.element(by.css('.tree-text'));
+    const childrenCount = await link.element(by.css('.tree-children-count-text'));
+    const ul = await element(by.css('#public + ul'));
+
+    expect(await childrenCount.getText()).toEqual('1');
+    expect(await element(by.css('#leadership .tree-children-count-text')).getText()).toEqual('4');
+    expect(await element(by.css('#new1 .tree-children-count-text')).getText()).toEqual('2');
+    expect(await element(by.css('#new2 .tree-children-count-text')).getText()).toEqual('3');
+    expect(await link.getAttribute('class')).not.toContain('is-selected');
+    expect(await ul.getAttribute('class')).toContain('is-open');
+    await iconExpandTarget.click();
+    await browser.driver.sleep(config.sleep);
+
+    expect(await childrenCount.getText()).toEqual('1');
+    expect(await element(by.css('#new1 .tree-children-count-text')).getText()).toEqual('2');
+    expect(await element(by.css('#new2 .tree-children-count-text')).getText()).toEqual('3');
+    expect(await link.getAttribute('class')).not.toContain('is-selected');
+    expect(await ul.getAttribute('class')).not.toContain('is-open');
+    await text.click();
+    await browser.driver.sleep(config.sleep);
+
+    expect(await childrenCount.getText()).toEqual('1');
+    expect(await element(by.css('#new1 .tree-children-count-text')).getText()).toEqual('2');
+    expect(await element(by.css('#new2 .tree-children-count-text')).getText()).toEqual('3');
+    expect(await link.getAttribute('class')).toContain('is-selected');
+    expect(await ul.getAttribute('class')).not.toContain('is-open');
   });
 });

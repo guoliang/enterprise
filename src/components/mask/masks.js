@@ -85,7 +85,7 @@ const DEFAULT_NUMBER_MASK_OPTIONS = {
   requireDecimal: false,
   allowNegative: false,
   allowLeadingZeros: false,
-  integerLimit: null
+  integerLimit: null,
 };
 
 // Gets the number of leading zeros in a string representing a formatted number.
@@ -170,6 +170,7 @@ masks.numberMask = function sohoNumberMask(rawValue, options) {
   if (!options.locale || !options.locale.length) {
     options.locale = Locale.currentLocale.name;
   }
+
   // Deprecated in v4.25.1
   if (options.allowLeadingZeroes) {
     warnAboutDeprecation('allowLeadingZeros', 'allowLeadingZeroes', 'Number Mask');
@@ -198,7 +199,8 @@ masks.numberMask = function sohoNumberMask(rawValue, options) {
     ) {
       return PREFIX.split(masks.EMPTY_STRING).concat([masks.DIGITS_REGEX])
         .concat(SUFFIX.split(masks.EMPTY_STRING));
-    } else if (
+    }
+    if (
       thisRawValue === DECIMAL && options.allowDecimal
     ) {
       return PREFIX.split(masks.EMPTY_STRING).concat(['0', DECIMAL, masks.DIGITS_REGEX])
@@ -248,6 +250,7 @@ masks.numberMask = function sohoNumberMask(rawValue, options) {
       style: 'decimal',
       useGrouping: true
     };
+
     integer = (options.allowThousandsSeparator) ?
       addThousandsSeparator(integer, THOUSANDS, options, localeOptions) : integer;
 
@@ -342,7 +345,7 @@ masks.dateMask = function dateMask(rawValue, options) {
   const format = options.format;
   const splitterStr = str.removeDuplicates(format.replace(/[dMyHhmsa]+/g, ''));
   const splitterRegex = new RegExp(`[${splitterStr}]+`);
-  const formatArray = format.split(/[^dMyHhmsa]+/);
+  const formatArray = format.match(/(d{1,2}|M{1,4}|y{1,4}|H{1,2}|h{1,2}|m{1,2}|s{1,2}|a{1}|z{1, 4}|E{1, 4})/g);
   const rawValueArray = rawValue.split(splitterRegex);
   const maxValue = DATE_MAX_VALUES;
 

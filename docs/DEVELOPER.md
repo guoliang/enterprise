@@ -102,10 +102,27 @@ To manually build the contents of the distributable folder (`dist/`), run the fo
 npm run build
 ```
 
+### Custom builds
+
 It's also possible to run a custom build of IDS with your choice of components.  The custom bundler can be run with:
 
 ```sh
 npm run build -- --components=button,input,masks,popupmenu,listview
+```
+
+### Different bundle types
+
+In some cases, you may want to include an [ES Module](https://hacks.mozilla.org/2018/03/es-modules-a-cartoon-deep-dive/) version of the IDS components to be imported in your application.  By default, IDS's build tools will use the standard bundle. However, the Custom Builder can be configured to produce both a standard IIFE bundle, and/or an ES Module that exports the component library.  Use the `--types` flag to do this:
+
+```sh
+# builds the ES Module by itself
+npm run build -- --types="es"
+
+# builds the standard bundle by itself
+npm run build -- --types="iife"
+
+# builds both
+npm run build -- --types="es,iife"
 ```
 
 ## Running the development server
@@ -114,9 +131,9 @@ npm run build -- --components=button,input,masks,popupmenu,listview
 
 #### Node.js
 
-![Node.js Version](https://img.shields.io/badge/node-%3E%3D%2010.9.0-green.svg);
+![Node.js Version](https://img.shields.io/badge/node-%3E%3D%2012.16.3-green.svg);
 
-All of our build tools run in [Node.JS](https://nodejs.org/en/). We are currently pinned to version 10 of node, **so be sure to use that version**. We have a script that tests for this during `npm install`. You'll also need all the requirements [node-gyp](https://github.com/nodejs/node-gyp#installation) suggests installing for your operating system.
+All of our build tools run in [Node.JS](https://nodejs.org/en/). We are currently all using Node 12. We have a script that tests for this during `npm install`. You'll also need all the requirements [node-gyp](https://github.com/nodejs/node-gyp#installation) suggests installing for your operating system. We suggest a node version manager like [nvm](https://github.com/nvm-sh/nvm) or [nvm windows](https://github.com/coreybutler/nvm-windows)
 
 #### Git
 
@@ -148,16 +165,32 @@ Optional: We use [`nvm`](https://github.com/creationix/nvm) in development so th
 
 See the `scripts` object in [package.json](../package.json) for a full list of commands.
 
-#### Debugging the Demo Server
+#### Debugging the Demo Application
+
+Debugging the Demo App can be done in the usual manner for Node applications, with the `--inspect` or `--inspect-brk` flags:
 
 - Add a break point in the demo app code
-- Run `node --inspect app/server.js --verbose` to start the app in debug mode
+- Run `node --inspect-brk app/server.js --verbose` to start the app in debug mode
 - Open chrome and navigate to `chrome://inspect` and press run target
 - Open the page in question and the debugger should popup up
 
+It's also possible to start the demoapp with flags that control certain options, such as locale, color scheme, etc.  Unless these flags are individually overriden via URL query parameters, they will take effect on all pages until the demoapp is restarted.
+
+For example, if you wanted to test overall changes to the demoapp in the Spanish locale with an alternate color scheme, you could start the demoapp with the following flags:
+
+```sh
+node app/server.js --verbose --locale=es-ES --colors=#941e1e
+```
+
+Appending these same parameters to the URL is a way to temporarily test them against a single page:
+
+```html
+http://localhost:4000/components/mask/test-number-mask-gauntlet?locale=es-ES&colors=#941e1e
+```
+
 #### Editor Plugins
 
-This project uses `eslint` and `editorconfig`. You may want to add linting plugins to your editor to help comply with our coding standards:
+This project uses `eslint` and `editorconfig`. You may want to add lint plugins to your editor to help comply with our coding standards:
 
 _For Atom:_
 
@@ -180,8 +213,7 @@ Documentation from within this project is deployed to [design.infor.com](https:/
 - From a component readme and linking to another component's documentation, use a relative link like `[Read about buttons](./button)`. Using a relative link like this will maintain the current version the website visitor has selected.
 - The design system website automatically sets `target="_blank"` for any code documentation link which contains `/demo/` in it. It's not necessary for you to add this within the documentation itself.
 - Paths for demo links use the same URL structure as on the local development app.
-    - For example, to create a link to a pattern page, take the URI from the dev app such as `/patterns/navigation-breadcrumbs` and from a component readme page, create a relative link like `[see pattern demo](./demo/patterns/navigation-breadcrumbs)`.
-    - This works for `/components/`, `/patterns/`, etc.
+    - For example, to create a link to a components page, take the URI from the dev app such as `/components/tabs/example-index` and from a component readme page, create a relative link like `[see example / demo](./demo/components/tabs/example-index)`.
 
 ## Guidelines for creating a new IDS Component
 

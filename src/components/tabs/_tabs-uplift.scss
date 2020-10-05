@@ -14,7 +14,7 @@
   > .tab-list-container {
     .tab {
       &.is-disabled {
-        color: $theme-color-brand-secondary-lighter !important;
+        color: $ids-color-brand-secondary-lighter !important;
       }
 
       // Adds "semi-bold" style to selected/active tabs
@@ -26,13 +26,40 @@
       }
     }
   }
+
+  .add-tab-button {
+    span[aria-hidden] {
+      @include font-size(24);
+    }
+  }
 }
 
-.tab-container.horizontal > .tab-list-container .tab:not(.last-child).is-error .icon-error,
-.tab-container.header-tabs > .tab-list-container .tab:not(.last-child).is-error .icon-error {
-  height: 15px;
-  margin-top: -3px;
+.popupmenu.tab-list-spillover,
+.popupmenu.dropdown-tab {
+  .icon {
+    &.icon-error,
+    &.icon-info,
+    &.icon-alert {
+      top: 10px;
+    }
+  }
+}
+
+.tab-container.horizontal > .tab-list-container .tab .icon-error {
+  right: 3px;
+  top: 16px;
   width: 15px;
+}
+
+.tab-container.horizontal .add-tab-button {
+  margin-top: 7px;
+  padding: 0;
+  width: 35px;
+
+  span[aria-hidden] {
+    font-size: 25px;
+    top: -1px;
+  }
 }
 
 @import '../tabs-module/tabs-module-uplift';

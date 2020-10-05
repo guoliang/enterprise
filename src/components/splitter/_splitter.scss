@@ -54,7 +54,8 @@
     background-color: $splitter-active-bg-color;
     outline: none;
 
-    &::after {
+    &::after,
+    .splitter-drag-handle {
       color: $splitter-active-grip-bg-color;
     }
 
@@ -65,11 +66,12 @@
 
   .splitter-btn {
     height: 30px;
-    left: -4px;
+    left: 2px;
     margin-top: -2px;
+    min-width: 16px;
     position: absolute;
-    transform: none;
-    width: 30px;
+    transform: rotate(180deg);
+    width: 16px;
     z-index: 101;
 
     .icon {
@@ -79,9 +81,7 @@
     }
 
     &.rotate {
-      left: -6px;
-      margin-top: -5px;
-      transform: rotate(180deg);
+      transform: rotate(0deg);
     }
   }
 
@@ -93,15 +93,17 @@
     height: 41px;
   }
 
-  &::after {
+  .splitter-drag-handle {
     color: $splitter-grip-bg-color;
-    content: '⁞';
     display: block;
-    font-size: 28px;
-    left: 5px;
-    margin-top: -12px;
     position: absolute;
     top: 50%;
+    transform: translateY(-50%);
+
+    .icon {
+      color: currentColor;
+      width: 19px;
+    }
   }
 
   //Other Layouts
@@ -114,6 +116,15 @@
     &.is-dragging {
       box-shadow: 2px 0 3px 0 $splitter-box-shadow-color;
     }
+
+    .splitter-btn {
+      transform: none;
+
+      &.rotate {
+        margin-top: -5px;
+        transform: rotate(180deg);
+      }
+    }
   }
 
   //Other Layouts
@@ -123,17 +134,15 @@
     position: absolute;
     width: 100%;
 
-    &::after {
+    .splitter-drag-handle {
       @include transform(rotate(90deg));
 
       color: $splitter-grip-bg-color;
-      content: '⁞';
       display: block;
-      font-size: 28px;
       left: 50%;
       margin-left: -10px;
       position: absolute;
-      top: 30%;
+      top: 1px;
     }
   }
 
@@ -154,14 +163,61 @@
 
 .ie {
   .splitter-container {
-    .toolbar .buttonset > [class*='btn'] {
+    .toolbar .buttonset > [class^='btn'] {
       line-height: normal;
     }
   }
 }
 
 .splitter-overlay {
+  background-color: $ids-color-palette-white;
   height: 100%;
-  opacity: 0.6;
+  opacity: 0.1;
+  position: static;
   visibility: visible;
+}
+
+// RTL Styles
+html[dir='rtl'] {
+  .splitter-container {
+    .flex-grow-shrink {
+      &.is-right-side {
+        margin-left: initial;
+        margin-right: 20px;
+      }
+    }
+
+    .sidebar {
+      border-left: none;
+    }
+  }
+
+  .splitter {
+    border-left: none;
+    border-right: 1px solid $panel-border-color;
+
+    &.is-dragging {
+      box-shadow: 2px 0 3px 0 $splitter-box-shadow-color;
+    }
+
+    &.splitter-right {
+      border-left: 1px solid $panel-border-color;
+      border-right: none;
+
+      &.is-dragging {
+        box-shadow: -2px 0 3px 0 $splitter-box-shadow-color;
+      }
+    }
+
+    .splitter-btn {
+      left: -6px;
+
+      .icon {
+        -ms-filter: fliph;
+        filter: fliph;
+        -webkit-transform: scaleX(-1);
+        transform: scaleX(-1);
+      }
+    }
+  }
 }

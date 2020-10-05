@@ -1,6 +1,13 @@
 import { utils } from '../../utils/utils';
 import { Environment as env } from '../../utils/environment';
 
+// jQuery Components
+import '../button/button.jquery';
+import '../colorpicker/colorpicker.jquery';
+import '../hyperlinks/hyperlinks.jquery';
+import '../popupmenu/popupmenu.jquery';
+import '../searchfield/searchfield.jquery';
+
 // Component Name
 const COMPONENT_NAME = 'toolbarflexitem';
 
@@ -596,8 +603,8 @@ ToolbarFlexItem.prototype = {
     this.hasNoOverflowedItems = true;
 
     // If there are toolbar items, but no predefined items, render the more-actions menu
-    if ((!menuAPI.settings.beforeOpen && (!this.predefinedItems || !this.predefinedItems.length))
-      && this.toolbarAPI.items.length) {
+    if ((!menuAPI.settings.beforeOpen && (!this.predefinedItems || !this.predefinedItems.length)) &&
+      this.toolbarAPI.items.length) {
       this.renderMoreActionsMenu();
     }
 
@@ -899,8 +906,19 @@ ToolbarFlexItem.prototype = {
     delete this.toolbar;
     delete this.trueSelected;
     delete this.menuRendered;
-  }
+  },
 
+  /**
+   * Destroy the item and any popup menus
+   * @returns {void}
+   */
+  destroy() {
+    const popupmenu = $(this.element).data('popupmenu');
+    if (popupmenu && popupmenu.destroy) {
+      popupmenu.destroy();
+    }
+    this.teardown();
+  }
 };
 
 export { ToolbarFlexItem, getToolbarItemType, COMPONENT_NAME, TOOLBAR_ELEMENTS };

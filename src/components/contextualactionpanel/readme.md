@@ -1,6 +1,6 @@
 ---
 title: Contextual Action Panel
-description: null
+description: The Contextual Action Panel (CAP) is used for displaying entire workflows in a Modal-style setting.
 demo:
   embedded:
   - name: Default CAP Example
@@ -12,8 +12,12 @@ demo:
     slug: example-markup
   - name: CAP example triggering on adjacent content
     slug: example-trigger
+  - name: Workspaces Pattern (See Below)
+    slug: example-workspaces
   - name: Destroy Test
     slug: test-destroy
+  - name: Disable a button on a CAP Toolbar
+    slug: test-disable-button
   - name: Launching From a Menu
     slug: test-from-menu
   - name: IFrame for Contents
@@ -30,29 +34,56 @@ test:
 
 ## Code Example
 
-This example shows how to invoke a contextual action panel and pass in the content for the body. The `buttons` option lets you customize the contextual action panel's toolbar and functions.
+This example shows how to invoke a contextual action panel and pass in the content for the body. The `buttons` option lets you customize the contextual action panel's toolbar and functions. For best cleanup of memory its recommended to either add an id to the modalSettings option(`modalSettings.id`) or within the content property, the main div should have an ID `<div id="panel-1" style="display: none;">`. If not a unique one will be assigned and you should cleanup and destroy the CAP when done in that case because the component is not able to track open CAPs and reuse the same objects.
+
+It will still work without if but you may need to call CAP destroy or destroyAll to further clean memory up.
 
 ```javascript
 $('body').contextualactionpanel({
-  id: 'contextual-action-modal-id',
   title: 'Expenses: $50,000.00',
-  content: '<markup>',
+  content: $('#panel-2'),
   trigger: 'immediate',
-  buttons: [
+  modalSettings: {
+    trigger: 'immediate',
+    id: 'cap-2',
+    buttons: [
     {
-      type: 'input',
-      text: 'Keyword',
-      id: 'filter',
-      name: 'filter',
-      cssClass: 'searchfield'
-    }, {
       text: 'Close',
       cssClass: 'btn',
-      icon: '#icon-close'
+      icon: '#icon-close',
+      click: function() {
+        var api = $(this).data('modal');
+        api.close();
+      }
     }
   ]
+  }
 });
 ```
+
+### Interacting with the Internal Toolbar
+
+If configured with the `useFlexToolbar: true;` setting, it's possible to get access to the Contextual Action Panel's inner [Flex Toolbar API]('./toolbar-flex'). This will allow for any toolbar-wide operations, as well as interacting with each individual item directly:
+
+```js
+// Access the toolbar API on the CAP
+const capAPI = $('body').data('contextualactionpanel');
+const flexToolbarAPI = capAPI.toolbarAPI;
+
+// Disable the close button using its `FlexToolbarItem` API
+flexToolbarAPI.items[0].disabled = true;
+```
+
+## Workspaces Concept
+
+Workspaces are another term for a Contextual Action Panel that contains complex more complex workflows. The most
+common use case for Workspace can be seen in a Infor Homepage where a Workspace can be triggered from a Widget. Workspaces can be used to show and collect many data points where users can perform multiple actions without the need
+to launch the full application. Some of the workflow examples are editing and submitting data, and viewing additional
+information on a particular data point. The option to launch the full application should be provided within the
+Workspace which would take users to the specific workflow in the application. The example above shows a simple
+workspace concept. This concept works best on XL-M breakpoints or Desktop and Tablet devices. The toolbar used in
+Workspace demonstrates a left-aligned terminal action (usually Cancel), a center-aligned Title with optional action
+ (Launch Application), and a right-aligned confirmation action (usually Submit).
 
 ## Keyboard Shortcuts
 

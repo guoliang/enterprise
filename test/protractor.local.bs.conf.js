@@ -2,7 +2,6 @@
 const basePath = __dirname;
 const { SpecReporter } = require('jasmine-spec-reporter');
 const browserstack = require('browserstack-local');
-const protractorImageComparison = require('protractor-image-comparison');
 const specs = require('./helpers/detect-custom-spec-list')('e2e', process.env.PROTRACTOR_SPECS);
 
 const theme = process.env.ENTERPRISE_THEME || 'soho'
@@ -28,8 +27,7 @@ exports.config = {
   baseUrl: 'http://localhost:4000',
   jasmineNodeOpt: {
     defaultTimeoutInterval: 10000,
-    showColors: true,
-    random: false
+    showColors: true
   },
   commonCapabilities: {
     'browserstack.user': process.env.BROWSERSTACK_USERNAME,
@@ -100,13 +98,6 @@ exports.config = {
   onPrepare: () => {
     global.requireHelper = (filename) => require(`${basePath}/helpers/${filename}.js`);
     browser.ignoreSynchronization = true;
-    browser.protractorImageComparison = new protractorImageComparison({
-      baselineFolder: `${basePath}/baseline`,
-      screenshotPath: `${basePath}/.tmp/`,
-      autoSaveBaseline: false,
-      ignoreAntialiasing: true,
-      debug: true
-    });
 
     jasmine.getEnv().addReporter(new SpecReporter({
       spec: { displayStacktrace: 'specs' }

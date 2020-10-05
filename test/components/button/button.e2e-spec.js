@@ -16,6 +16,11 @@ describe('Button example-index tests', () => {
     await utils.checkForErrors();
   });
 
+  it('Should be disabled', async () => {
+    expect(await element(by.id('primary-action-three')).getAttribute('class')).not.toContain('is-disabled');
+    expect(await element(by.id('primary-action-three')).getAttribute('disabled')).toBe('true');
+  });
+
   if (utils.isChrome()) {
     it('Should tab to "Primary Button", and animate on enter', async () => {
       const buttonEl = await element.all(by.css('.btn-primary')).get(0);
@@ -207,7 +212,7 @@ describe('Button example-with-icons tests', () => {
         .wait(protractor.ExpectedConditions.presenceOf(buttonEl), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(buttonEl, 'button-init')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(buttonEl, 'button-init')).toEqual(0);
     });
   }
 
@@ -254,7 +259,7 @@ describe('Button example-100-percent tests', () => {
       await element(by.id('one-hundred')).sendKeys(protractor.Key.TAB);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(buttonElContainer, 'button-width-focus')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(buttonElContainer, 'button-width-focus')).toEqual(0);
     });
 
     it('Should not visual regress on example-100-percent at 1280px', async () => {
@@ -263,7 +268,7 @@ describe('Button example-100-percent tests', () => {
       await browser.driver.sleep(config.sleep);
       const buttonElContainer = await element(by.id('maincontent'));
 
-      expect(await browser.protractorImageComparison.checkElement(buttonElContainer, 'button-width-1280')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(buttonElContainer, 'button-width-1280')).toEqual(0);
       await browser.driver.manage().window().setSize(windowSize.width, windowSize.height);
     });
 
@@ -273,7 +278,7 @@ describe('Button example-100-percent tests', () => {
       await browser.driver.sleep(config.sleep);
       const buttonElContainer = await element(by.id('maincontent'));
 
-      expect(await browser.protractorImageComparison.checkElement(buttonElContainer, 'button-width-768')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(buttonElContainer, 'button-width-768')).toEqual(0);
       await browser.driver.manage().window().setSize(windowSize.width, windowSize.height);
     });
 
@@ -283,7 +288,7 @@ describe('Button example-100-percent tests', () => {
       await browser.driver.sleep(config.sleep);
       const buttonElContainer = await element(by.id('maincontent'));
 
-      expect(await browser.protractorImageComparison.checkElement(buttonElContainer, 'button-width-500')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(buttonElContainer, 'button-width-500')).toEqual(0);
       await browser.driver.manage().window().setSize(windowSize.width, windowSize.height);
     });
 
@@ -293,7 +298,7 @@ describe('Button example-100-percent tests', () => {
       await browser.driver.sleep(config.sleep);
       const buttonElContainer = await element(by.id('maincontent'));
 
-      expect(await browser.protractorImageComparison.checkElement(buttonElContainer, 'button-width-320')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(buttonElContainer, 'button-width-320')).toEqual(0);
       await browser.driver.manage().window().setSize(windowSize.width, windowSize.height);
     });
   }
@@ -314,7 +319,7 @@ describe('Button secondary border tests', () => {
       await browser.driver
         .wait(protractor.ExpectedConditions.presenceOf(containerEl), config.waitsFor);
 
-      expect(await browser.protractorImageComparison.checkScreen('button-secondary')).toEqual(0);
+      expect(await browser.imageComparison.checkScreen('button-secondary')).toEqual(0);
     });
   }
 });

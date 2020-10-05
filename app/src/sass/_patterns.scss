@@ -6,7 +6,7 @@
 //================================================== //
 
 .contained-scrolling-left-col {
-  background-color: $theme-color-palette-white;
+  background-color: $ids-color-palette-white;
   display: inline-block;
   height: calc(100% - 45px);
   margin-left: 20px;
@@ -21,7 +21,7 @@
 }
 
 .contained-scrolling-right-top {
-  background-color: $theme-color-palette-white;
+  background-color: $ids-color-palette-white;
   display: inline-block;
   height: calc(42% - 20px);
   margin-left: 20px;
@@ -38,7 +38,7 @@
 }
 
 .contained-scrolling-right-bottom {
-  background-color: $theme-color-palette-white;
+  background-color: $ids-color-palette-white;
   display: inline-block;
   height: calc(55% - 25px);
   margin-left: 20px;
@@ -63,5 +63,20 @@
     > .content {
       min-height: 1000px;
     }
+  }
+}
+
+// ===================================================================================================
+// These rules allow for a header/page container to animate their height.
+// This can be useful and good aesthetically for demo pages where header components are swapped often.
+// Apply `animate-containers` on the `body` tag.
+// ===================================================================================================
+.animate-containers {
+  header {
+    @include transition(height 200ms cubic-bezier(0.17, 0.04, 0.03, 0.94));
+  }
+
+  .page-container {
+    @include transition(height 200ms cubic-bezier(0.17, 0.04, 0.03, 0.94));
   }
 }

@@ -34,7 +34,7 @@ describe('Editor example-index tests', () => {
     await sourceElem.sendKeys('<b>Test</b>');
     await element(by.css('button[data-action=visual]')).click();
     await browser.driver.sleep(config.sleep);
-    testText = await await element(by.css('.editor')).getText();
+    testText = await element(by.css('.editor')).getText();
 
     expect(testText.replace(/(\r\n\t|\n|\r\t)/gm, '')).toEqual('TestTest');
   });
@@ -86,7 +86,7 @@ describe('Editor visual regression tests', () => {
       await browser.driver.sleep(config.sleep);
       const elem = await element(by.css('.editor-container'));
 
-      expect(await browser.protractorImageComparison.checkElement(elem, 'editor-subtle-light')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(elem, 'editor-subtle-light')).toEqual(0);
     });
 
     it('Should not visually regress on subtle dark', async () => {
@@ -94,7 +94,7 @@ describe('Editor visual regression tests', () => {
       await browser.driver.sleep(config.sleep);
       const elem = await element(by.css('.editor-container'));
 
-      expect(await browser.protractorImageComparison.checkElement(elem, 'editor-subtle-dark')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(elem, 'editor-subtle-dark')).toEqual(0);
     });
 
     it('Should not visually regress on subtle contrast', async () => {
@@ -102,15 +102,7 @@ describe('Editor visual regression tests', () => {
       await browser.driver.sleep(config.sleep);
       const elem = await element(by.css('.editor-container'));
 
-      expect(await browser.protractorImageComparison.checkElement(elem, 'editor-subtle-contrast')).toEqual(0);
-    });
-
-    it('Should not visually regress on vibrant light', async () => {
-      await utils.setPage('/components/editor/example-index?theme=uplift&variant=light&layout=nofrills');
-      await browser.driver.sleep(config.sleep);
-      const elem = await element(by.css('.editor-container'));
-
-      expect(await browser.protractorImageComparison.checkElement(elem, 'editor-vibrant-light')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(elem, 'editor-subtle-contrast')).toEqual(0);
     });
 
     it('Should not visually regress on vibrant dark', async () => {
@@ -118,7 +110,7 @@ describe('Editor visual regression tests', () => {
       await browser.driver.sleep(config.sleep);
       const elem = await element(by.css('.editor-container'));
 
-      expect(await browser.protractorImageComparison.checkElement(elem, 'editor-vibrant-dark')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(elem, 'editor-vibrant-dark')).toEqual(0);
     });
 
     it('Should not visually regress on vibrant contrast', async () => {
@@ -126,7 +118,7 @@ describe('Editor visual regression tests', () => {
       await browser.driver.sleep(config.sleep);
       const elem = await element(by.css('.editor-container'));
 
-      expect(await browser.protractorImageComparison.checkElement(elem, 'editor-vibrant-contrast')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(elem, 'editor-vibrant-contrast')).toEqual(0);
     });
 
     it('Should not visually regress on subtle rows setting', async () => {
@@ -134,7 +126,7 @@ describe('Editor visual regression tests', () => {
       await browser.driver.sleep(config.sleep);
       const elem = await element(by.css('.editor-container'));
 
-      expect(await browser.protractorImageComparison.checkElement(elem, 'editor-subtle-rows')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(elem, 'editor-subtle-rows')).toEqual(0);
     });
 
     it('Should not visually regress on vibrant rows setting', async () => {
@@ -142,7 +134,7 @@ describe('Editor visual regression tests', () => {
       await browser.driver.sleep(config.sleep);
       const elem = await element(by.css('.editor-container'));
 
-      expect(await browser.protractorImageComparison.checkElement(elem, 'editor-vibrant-rows')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(elem, 'editor-vibrant-rows')).toEqual(0);
     });
   }
 });
@@ -193,7 +185,7 @@ describe('Editor dirty tracking tests', () => {
     if (utils.isChrome() && utils.isCI()) {
       const containerEl = await element(by.className('container'));
 
-      expect(await browser.protractorImageComparison.checkElement(containerEl, 'editor-dirty-tracker')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(containerEl, 'editor-dirty-tracker')).toEqual(0);
     }
   });
 
@@ -337,7 +329,7 @@ describe('Editor placeholder tests', () => {
     it('Should not visually regress', async () => { //eslint-disable-line
       const elem = await element(by.css('.editor'));
 
-      expect(await browser.protractorImageComparison.checkElement(elem, 'editor-placeholder')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(elem, 'editor-placeholder')).toEqual(0);
     });
   }
 });
@@ -356,6 +348,6 @@ describe('Editor modal tests', () => {
     await browser.driver.sleep(config.sleep);
     const sourceSize = await element(by.css('.editor-source')).getSize();
 
-    expect(previewSize.width).toEqual(sourceSize.width);
+    expect([previewSize.width, previewSize.width - 7]).toContain(sourceSize.width);
   });
 });

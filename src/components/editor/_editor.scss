@@ -1,6 +1,11 @@
 // Editor (Rich Text)
 //================================================== //
 
+@import '../button/button';
+@import '../colorpicker/colorpicker';
+@import '../fontpicker/fontpicker';
+@import '../popupmenu/popupmenu';
+
 .editor-container {
   .label {
     cursor: default;
@@ -9,15 +14,37 @@
   &.is-hover:not(.is-readonly):not(.is-disabled) {
     .editor,
     .editor-source,
-    .toolbar {
+    .toolbar,
+    .flex-toolbar {
       border-color: $editor-hover-border-color;
+    }
+  }
+
+  &.is-readonly {
+    .editor {
+      a {
+        pointer-events: none;
+      }
+
+      > * {
+        color: $input-readonly-color !important;
+      }
     }
   }
 
   &.is-readonly,
   &.is-disabled {
     .editor {
+      background-color: transparent;
       border-top: 1px solid $editor-border-color;
+
+      &[disabled] {
+        border-color: $input-color-disabled-border;
+      }
+
+      > * {
+        color: $input-disabled-color;
+      }
     }
 
     .editor-toolbar {
@@ -31,6 +58,7 @@
 
   &.is-disabled .editor {
     cursor: default;
+    pointer-events: none;
   }
 
   &.is-readonly .editor {
@@ -58,7 +86,7 @@
     margin-bottom: 0;
     z-index: 20;
 
-    [class*='btn'] {
+    [class^='btn'] {
       border-radius: 2px;
     }
   }
@@ -137,7 +165,7 @@
   display: block;
   font-size: $input-size-regular-font-size;
   -webkit-font-smoothing: antialiased;
-  font-weight: $theme-number-font-weight-base;
+  font-weight: $ids-number-font-weight-base;
   height: 320px;
   margin-bottom: 20px;
   min-height: 128px;
@@ -198,6 +226,9 @@
     .hyperlink {
       color: $hyperlink-color;
       font-size: $input-size-regular-font-size !important;
+      margin-left: -1px;
+      margin-right: -1px;
+      padding: 0;
     }
   }
 
@@ -216,37 +247,36 @@
   }
 
   h1 {
-    font-size: $theme-size-font-px-40;
+    font-size: $ids-size-font-px-40;
   }
 
   h2 {
-    font-size: $theme-size-font-px-32;
+    font-size: $ids-size-font-px-32;
   }
 
   h3 {
-    font-size: $theme-size-font-px-28;
+    font-size: $ids-size-font-px-28;
   }
 
   h4 {
-    font-size: $theme-size-font-px-24;
+    font-size: $ids-size-font-px-24;
   }
 
   h5 {
-    font-size: $theme-size-font-px-20;
+    font-size: $ids-size-font-px-20;
   }
 
   h6 {
-    font-size: $theme-size-font-px-16;
+    font-size: $ids-size-font-px-16;
   }
 
   ul,
   ol {
-    @include rem(line-height, 2.2rem);
-    @include rem(margin-left, 2rem);
-
     color: $input-color;
     font-size: $input-size-regular-font-size;
+    line-height: 2.2rem;
     list-style: disc;
+    margin-left: 2rem;
 
     li {
       line-height: inherit;
@@ -302,7 +332,8 @@
   }
 }
 
-.toolbar.formatter-toolbar {
+.toolbar.formatter-toolbar,
+.flex-toolbar.formatter-toolbar {
   overflow-x: visible;
 
   .buttonset {
@@ -311,8 +342,8 @@
     width: 100%;
   }
 
-  [class*='btn'] {
-    margin-top: 6px;
+  [class^='btn'] {
+    margin-top: 5px;
   }
 
   &.has-more-button {
@@ -343,12 +374,13 @@
   text-align: left;
 
   .buttonset {
-    [class*='btn'] {
+    [class^='btn'] {
       &:first-child {
         margin-left: 16px;
 
         &.fontpicker {
           margin-left: 5px;
+          width: 130px;
         }
       }
     }
@@ -376,7 +408,7 @@
     }
   }
 
-  [class*='btn'] {
+  [class^='btn'] {
     background-color: $editor-toolbar-bg-color;
     border: 1px solid transparent;
     color: $editor-btn-color;
@@ -505,12 +537,12 @@
 
     &[data-element='foreColor'] {
       .icon {
-        margin-top: 1px;
+        margin-top: -1px;
       }
 
       .trigger {
-        padding-left: 0;
-        padding-right: 5px;
+        padding-left: 2px;
+        padding-right: 8px;
 
         .icon {
           height: 16px;
@@ -588,18 +620,19 @@
 
       span {
         display: inline-block;
-        max-width: 100px;
-        width: 100px;
+        max-width: 90px;
+        width: 90px;
       }
     }
   }
 }
 
 // Standard Toolbar-specific styles
-.toolbar.formatter-toolbar {
+.toolbar.formatter-toolbar,
+.flex-toolbar.formatter-toolbar {
   .separator {
     height: 18px;
-    margin: 1px 11px 0 3px;
+    margin: 0 10px 0 6px;
   }
 }
 
@@ -608,19 +641,15 @@
   .toolbar-section.more {
     .btn-actions {
       height: 23px;
-      margin-right: 15px;
-      min-height: 23px;
+      margin-right: 12px;
+      min-height: 20px;
+      top: -3px;
       width: 23px;
 
       > .icon {
         left: 2px;
       }
     }
-  }
-
-  .separator {
-    height: 20px;
-    margin: -3px 15px 0 3px;
   }
 }
 
@@ -654,7 +683,7 @@
     border: 0;
     color: $editor-color;
     font-size: $input-size-regular-font-size;
-    font-weight: $theme-number-font-weight-base;
+    font-weight: $ids-number-font-weight-base;
     height: 100%;
     line-height: 2.4rem;
     outline: none;
@@ -686,7 +715,7 @@
     padding: 15px 10px 10px;
 
     > li {
-      font-size: $theme-size-font-sm;
+      font-size: $ids-size-font-sm;
       line-height: 2.41rem;
       text-align: center;
     }
@@ -727,7 +756,8 @@ html.is-firefox {
     }
   }
 
-  .toolbar.formatter-toolbar .fontpicker {
+  .toolbar.formatter-toolbar .fontpicker,
+  .flex-toolbar.formatter-toolbar .fontpicker {
     span {
       padding-top: 3px !important;
     }
@@ -749,11 +779,17 @@ html[dir='rtl'] {
     }
   }
 
+  .editor ul,
+  .editor ol {
+    margin-left: 0;
+    margin-right: 2rem;
+  }
+
   .toolbar,
   .flex-toolbar {
     &.formatter-toolbar {
       .buttonset {
-        [class*='btn'] {
+        [class^='btn'] {
           &:first-child {
             margin-left: auto;
             margin-right: 16px;

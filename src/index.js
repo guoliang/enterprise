@@ -13,6 +13,7 @@ export { DOM } from './utils/dom';
 export { objectUtils as object } from './utils/object';
 export { stringUtils as string } from './utils/string';
 export { numberUtils as number } from './utils/number';
+export { colorUtils as colors } from './utils/color';
 export { xssUtils as xss } from './utils/xss';
 export { breakpoints } from './utils/breakpoints';
 export { Locale } from './components/locale/locale';
@@ -26,6 +27,9 @@ export { renderLoop, RenderLoopItem } from './utils/renderloop';
 
 // Keyboard needs a single instance of itself
 export { keyboard } from './utils/keyboard';
+
+// Modal Manager needs a single instance
+export { modalManager } from './components/modal/modal.manager';
 
 // Theme/Personalization need single instances of themselves
 export { personalization } from './components/personalize/personalize.bootstrap';
@@ -57,6 +61,5 @@ export * from './core/rules';
 
 // Components ================================= /
 import * as components from './components/components';
-import * as patterns from './patterns/patterns';
 
-export { components, patterns };
+export { components };

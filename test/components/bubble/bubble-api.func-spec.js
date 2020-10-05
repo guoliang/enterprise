@@ -1,11 +1,10 @@
-import { triggerContextmenu } from '../../helpers/func-utils';
+import { triggerContextmenu, cleanup } from '../../helpers/func-utils';
 import { Line } from '../../../src/components/line/line';
 
 const areaHTML = require('../../../app/views/components/bubble/example-index.html');
 const svg = require('../../../src/components/icons/svg.html');
 
 let bubbleEl;
-let svgEl;
 let bubbleObj;
 
 const dataset = [{
@@ -201,34 +200,27 @@ const dataset = [{
 describe('Bubble Chart API', () => {
   beforeEach(() => {
     bubbleEl = null;
-    svgEl = null;
     bubbleObj = null;
     document.body.insertAdjacentHTML('afterbegin', svg);
     document.body.insertAdjacentHTML('afterbegin', areaHTML);
     bubbleEl = document.body.querySelector('#bubble-example');
-    svgEl = document.body.querySelector('.svg-icons');
 
-    bubbleObj = new Line(bubbleEl, { isBubble: true, type: 'bubble', dataset, animate: false });
+    bubbleObj = new Line(bubbleEl, { isBubble: true, type: 'bubble', dataset, animate: true });
   });
 
   afterEach(() => {
     bubbleObj.destroy();
-    svgEl.parentNode.removeChild(svgEl);
-    bubbleEl.parentNode.removeChild(bubbleEl);
-
-    const rowEl = document.body.querySelector('.row');
-    rowEl.parentNode.removeChild(rowEl);
+    cleanup([
+      '.svg-icons',
+      '.row',
+      '#bubble-script'
+    ]);
   });
 
   it('Should show on page', () => {
     expect(document.body.querySelectorAll('.dot').length).toEqual(24);
     expect(document.body.querySelectorAll('.line-group').length).toEqual(2);
     expect(document.body.querySelectorAll('.chart-legend')[0].innerText.replace(/[\r\n]+/g, '')).toEqual('Series 01Series 02');
-  });
-
-  it('Should render selected dot', () => {
-    expect(document.body.querySelectorAll('[data-group-id="0"]').length).toEqual(1);
-    expect(document.body.querySelector('[data-group-id="0"]').classList.contains('is-selected')).toBeTruthy();
   });
 
   it('Should be able to get the get and set the selected bubble', () => {
@@ -294,12 +286,42 @@ describe('Bubble Chart API', () => {
 
   it('Should fire contextmenu event', () => {
     const spyEvent = spyOnEvent(bubbleEl, 'contextmenu');
-    const result = { name: 'January', value: { x: 5, y: 3, z: 3 }, selected: true };
+    const result = { name: 'January', value: { x: 5, y: 3, z: 3 } };
     $(bubbleEl).on('contextmenu', (e, el, d) => {
       expect(d).toEqual(jasmine.objectContaining(result));
     });
     triggerContextmenu(document.body.querySelector('[data-group-id="0"] .dot'));
 
     expect(spyEvent).toHaveBeenTriggered();
+  });
+
+  it('Should hide xAxis line', () => {
+    bubbleObj.destroy();
+    bubbleObj = new Line(bubbleEl, {
+      dataset,
+      type: 'bubble',
+      isBubble: true,
+      animate: false,
+      xAxis: { hideLine: true }
+    });
+
+    expect(document.body.querySelectorAll('.dot').length).toEqual(24);
+    expect(document.body.querySelectorAll('.line-group').length).toEqual(2);
+    expect(document.body.querySelector('.x.axis .tick line').style.opacity).toEqual('0');
+  });
+
+  it('Should hide yAxis line', () => {
+    bubbleObj.destroy();
+    bubbleObj = new Line(bubbleEl, {
+      dataset,
+      type: 'bubble',
+      isBubble: true,
+      animate: false,
+      yAxis: { hideLine: true }
+    });
+
+    expect(document.body.querySelectorAll('.dot').length).toEqual(24);
+    expect(document.body.querySelectorAll('.line-group').length).toEqual(2);
+    expect(document.body.querySelector('.y.axis .tick line').style.opacity).toEqual('0');
   });
 });

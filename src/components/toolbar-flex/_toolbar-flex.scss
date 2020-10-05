@@ -2,6 +2,11 @@
 // Flexible Toolbar Component
 // ==================================== //
 
+@import '../button/button';
+@import '../colorpicker/colorpicker';
+@import '../fontpicker/fontpicker';
+@import '../popupmenu/popupmenu';
+
 .toolbar-container {
   &.in-page {
     height: 40px;
@@ -13,6 +18,18 @@
   display: flex;
   flex-flow: row nowrap;
   justify-content: space-between;
+
+  .toolbar-section {
+    &.title {
+      padding: 1px 0;
+    }
+
+    .searchfield-wrapper {
+      bottom: 1px;
+      display: flex;
+      position: relative;
+    }
+  }
 }
 
 .toolbar-section {
@@ -55,13 +72,13 @@
     .page-title,
     .section-title {
       display: block;
-      overflow-x: hidden;
+      overflow: hidden;
       padding: 0;
       text-overflow: ellipsis;
     }
 
     .section-title {
-      font-size: $theme-size-font-sm;
+      font-size: $ids-size-font-sm;
     }
 
     + .toolbar-section.buttonset {
@@ -80,11 +97,15 @@
   &.buttonset {
     padding: 4px;
 
-    [class*='btn'] {
+    [class^='btn'] {
       margin-right: 0;
 
       @media (max-width: $breakpoint-slim) {
         width: auto;
+      }
+
+      &:not(.btn) {
+        margin-right: 0;
       }
     }
   }
@@ -93,6 +114,7 @@
     padding: 0 10px;
 
     + .buttonset {
+      display: flex;
       flex-grow: 0;
     }
   }

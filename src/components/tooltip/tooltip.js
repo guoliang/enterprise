@@ -1,5 +1,6 @@
 import * as debug from '../../utils/debug';
 import { utils } from '../../utils/utils';
+import { keyboard } from '../../utils/keyboard';
 import { DOM } from '../../utils/dom';
 import { Environment as env } from '../../utils/environment';
 import { Locale } from '../locale/locale';
@@ -25,9 +26,11 @@ const TOOLTIP_TRIGGER_METHODS = ['hover', 'immediate', 'click', 'focus'];
  * @param {string|function} [settings.content] Takes title attribute or feed content. Can be a string or jQuery markup.
  * @param {object} [settings.offset={top: 10, left: 10}] How much room to leave.
  * @param {string} [settings.placement='top'] Supports 'top'|'bottom'|'right'|'offset'.
- * @param {string} [settings.trigger='hover'] Supports click and immediate and hover (and maybe in future focus).
+ * @param {string} [settings.trigger='hover'] Supports click and immediate and hover and focus
+ * @param {string} [settings.showOnKeyboardFocus] If the object with the tooltip is tabbed to, will also show the tooltip.
  * @param {string} [settings.title] Title for Infor Tips.
  * @param {string} [settings.beforeShow] Call back for ajax tooltip.
+ * @param {string} [settings.onHidden] Call back for hiding.
  * @param {string} [settings.popover] force it to be a popover (no content).
  * @param {string} [settings.closebutton] Show X close button next to title in popover.
  * @param {boolean} [settings.isError=false] Add error classes.
@@ -41,13 +44,15 @@ const TOOLTIP_TRIGGER_METHODS = ['hover', 'immediate', 'click', 'focus'];
  * @param {string} [settings.maxWidth] Toolip max width.
  * @param {boolean} [settings.initializeContent] Init the content in the tooltip.
  * @param {string} [settings.headerClass] If set this color will be used on the header (if a popover).
+ * @param {string} [settings.delay] The delay before showing the tooltip
+ * @param {string} [settings.attachToBody] The if true (default) the popup is added to the body. In some cases like popups with tab stops you may want to append the element next to the item.
  */
-
 const TOOLTIP_DEFAULTS = {
   content: null,
   offset: { top: 10, left: 10 },
   placement: 'top',
   trigger: TOOLTIP_TRIGGER_METHODS[0],
+  showOnKeyboardFocus: true,
   title: null,
   beforeShow: null,
   popover: null,
@@ -61,7 +66,10 @@ const TOOLTIP_DEFAULTS = {
   placementOpts: {},
   maxWidth: null,
   initializeContent: true,
-  headerClass: null
+  headerClass: null,
+  delay: 500,
+  onHidden: null,
+  attachToBody: true
 };
 
 function Tooltip(element, settings) {
@@ -252,36 +260,24 @@ Tooltip.prototype = {
    */
   handleEvents() {
     const self = this;
-    const delay = 400;
-    const renderLoopDelay = (delay / 30);
-    let timer;
+    const delay = self.settings.delay;
+    const renderLoopDelay = (delay / 10);
 
     function clearTimer() {
-      if (timer && timer.destroy) {
-        timer.destroy();
+      if (self.timer && self.timer.destroy) {
+        self.timer.destroy(true);
       }
     }
 
     function showOnTimer() {
       clearTimer();
-      timer = new RenderLoopItem({
+      self.timer = new RenderLoopItem({
         duration: renderLoopDelay,
         timeoutCallback() {
           self.show();
         }
       });
-      renderLoop.register(timer);
-    }
-
-    function hideOnTimer() {
-      clearTimer();
-      timer = new RenderLoopItem({
-        duration: renderLoopDelay,
-        timeoutCallback() {
-          self.hide();
-        }
-      });
-      renderLoop.register(timer);
+      renderLoop.register(self.timer);
     }
 
     function showImmediately() {
@@ -303,7 +299,17 @@ Tooltip.prototype = {
           showOnTimer();
         })
         .on(`mouseleave.${COMPONENT_NAME}`, () => {
-          hideOnTimer();
+          if (self.visible) {
+            hideImmediately();
+          } else {
+            clearTimer();
+          }
+        })
+        .on(`click.${COMPONENT_NAME}`, () => {
+          if (self.isTouch) {
+            return;
+          }
+          hideImmediately();
         })
         .on(`longpress.${COMPONENT_NAME}`, () => {
           showImmediately();
@@ -311,6 +317,21 @@ Tooltip.prototype = {
         .on(`updated.${COMPONENT_NAME}`, () => {
           self.updated();
         });
+
+      if (this.settings.showOnKeyboardFocus) {
+        ((this.element.is('.dropdown, .multiselect, span.longpress-target')) ? this.activeElement : this.element)
+          .on(`focus.${COMPONENT_NAME}`, () => {
+            if (self.isTouch && !keyboard.pressedKeys.get('Tab')) {
+              return;
+            }
+            showOnTimer();
+          })
+          .on(`blur.${COMPONENT_NAME}`, () => {
+            if (!self.settings.keepOpen) {
+              hideImmediately();
+            }
+          });
+      }
     }
 
     function toggleTooltipDisplay() {
@@ -328,7 +349,7 @@ Tooltip.prototype = {
     }
 
     if (this.settings.trigger === 'immediate') {
-      timer = setTimeout(() => {
+      setTimeout(() => {
         toggleTooltipDisplay();
       }, 1);
     }
@@ -425,7 +446,9 @@ Tooltip.prototype = {
       // Could be an ID attribute.
       // If it matches an element already on the page, grab that element's content
       // and store the reference only.
-      if (content.indexOf('#') === 0) {
+      // Adding a condition if it's really uses the ID attribute.
+      const idAttr = this.element[0].id;
+      if (content.indexOf('#') === 0 && (this.settings.popover ? true : idAttr === content.split('#').pop())) {
         const contentCheck = $(`${content}`);
         if (contentCheck.length) {
           this.content = contentCheck;
@@ -678,6 +701,7 @@ Tooltip.prototype = {
 
     this.position();
     utils.fixSVGIcons(this.tooltip);
+
     /**
      * Fires on show the tooltip.
      *
@@ -690,9 +714,11 @@ Tooltip.prototype = {
 
     const mouseUpEventName = this.isTouch ? 'touchend' : 'mouseup';
 
-    // Personalizable the toolbar
-    const isPersonalizable = self.element.closest('.is-personalizable').length > 0;
-    self.tooltip[0].classList[isPersonalizable ? 'add' : 'remove']('is-personalizable');
+    // Personalizable the tooltip
+    if (!self.settings.popover) {
+      const isPersonalizable = self.element.closest('.is-personalizable').length > 0;
+      self.tooltip[0].classList[isPersonalizable ? 'add' : 'remove']('is-personalizable');
+    }
 
     setTimeout(() => {
       $(document)
@@ -708,6 +734,10 @@ Tooltip.prototype = {
           }
 
           if ($('#editor-popup').length && $('#colorpicker-menu').length) {
+            return;
+          }
+
+          if ($('#editor-popup').length === 1 && target.closest('.popupmenu').length === 1) {
             return;
           }
 
@@ -773,17 +803,19 @@ Tooltip.prototype = {
        * @property {object} tooltip - instance
        */
       self.element.trigger('aftershow', [self.tooltip]);
-    }, 400);
+    }, self.settings.delay);
   },
 
   /**
    * Places the tooltip element itself in the correct DOM element.
    * If the current element is inside a scrollable container, the tooltip element
-   *  goes as high as possible in the DOM structure.
+   * goes as high as possible in the DOM structure.
+   * @private
    * @returns {void}
    */
   setTargetContainer() {
     let targetContainer = $('body');
+    let attachAfterTriggerElem = false;
 
     // adjust the tooltip if the element is being scrolled inside a scrollable DIV
     this.scrollparent = this.element.closest('.page-container.scrollable');
@@ -791,12 +823,24 @@ Tooltip.prototype = {
       targetContainer = this.scrollparent;
     }
 
+    // If the tooltip/popover is located inside a Modal, contain it within the modal, but
+    // place its markup directly after its target element.
+    const modalParent = this.element.closest('.modal');
+    if (!this.settings.attachToBody) {
+      attachAfterTriggerElem = true;
+      targetContainer = modalParent;
+    }
+
+    // If a specific parent element is defined, use that
     if (this.settings.parentElement) {
       targetContainer = this.settings.parentElement;
     }
 
-    // this.tooltip.detach().appendTo(targetContainer);
-    targetContainer[0].appendChild(this.tooltip[0]);
+    if (attachAfterTriggerElem) {
+      this.tooltip.insertAfter(this.element);
+    } else {
+      targetContainer[0].appendChild(this.tooltip[0]);
+    }
   },
 
   /**
@@ -913,6 +957,9 @@ Tooltip.prototype = {
      * @property {object} tooltip - instance
      */
     this.element.triggerHandler('hide', [this.tooltip]);
+    if (this.settings.onHidden) {
+      this.settings.onHidden({ api: this, elem: this.tooltip });
+    }
   },
 
   /**

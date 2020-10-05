@@ -14,7 +14,7 @@ const COMPONENT_NAME = 'message';
  * @class Message
  * @param {object} element The component element.
  * @param {object} [settings] The component settings.
- * @param {string} [settings.title='Message Title']  Title text or content shown in the message
+ * @param {string} [settings.title='Message Title']  Title text or content shown in the message. An HTML string containing the follow tags may also be used `<div><span><a><small><img><svg><i><b><use><br><strong><em>`.
  * @param {string} [settings.status='']  Pass a status to style icon and title color ('error', 'alert', 'success')
  * @param {string} [settings.message='Message Summary']  The message content or text
  * @param {number} [settings.width='auto']  Pass a specific with or defaults to auto
@@ -35,7 +35,8 @@ const MESSAGE_DEFAULTS = {
   returnFocus: null,
   allowedTags: '<a><b><br><br/><del><em><i><ins><mark><small><strong><sub><sup>',
   audibleLabel: '',
-  overlayOpacity: 0.7
+  overlayOpacity: 0.7,
+  hideUnderneath: false
 };
 
 function Message(element, settings) {
@@ -82,7 +83,8 @@ Message.prototype = {
       resizable: this.settings.resizable,
       close: this.settings.close,
       isAlert: true,
-      overlayOpacity: this.settings.overlayOpacity
+      overlayOpacity: this.settings.overlayOpacity,
+      hideUnderneath: this.settings.hideUnderneath
     });
 
     // Adjust Width if Set as a Setting

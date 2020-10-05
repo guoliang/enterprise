@@ -5,7 +5,7 @@ requireHelper('rejection');
 
 jasmine.getEnv().addReporter(browserStackErrorReporter);
 
-xdescribe('Icon Soho (Subtle) tests', () => {
+describe('Icon Soho (Subtle) tests', () => {
   beforeEach(async () => {
     await utils.setPage('/components/icons/example-index?layout=nofrills');
     await browser.driver.sleep(config.sleep);
@@ -20,12 +20,12 @@ xdescribe('Icon Soho (Subtle) tests', () => {
       const containerEl = await element(by.className('container'));
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(containerEl, 'icons-subtle')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(containerEl, 'icons-subtle')).toEqual(0);
     });
   }
 });
 
-xdescribe('Icon Uplift (Vibrant)  tests', () => {
+describe('Icon Uplift (Vibrant)  tests', () => {
   beforeEach(async () => {
     await utils.setPage('/components/icons/example-index?theme=uplift&layout=nofrills');
     await browser.driver.sleep(config.sleep);
@@ -40,7 +40,7 @@ xdescribe('Icon Uplift (Vibrant)  tests', () => {
       const containerEl = await element(by.className('container'));
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(containerEl, 'icons-vibrant')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(containerEl, 'icons-vibrant')).toEqual(0);
     });
   }
 });

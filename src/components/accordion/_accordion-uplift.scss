@@ -10,7 +10,7 @@
       padding-top: 6px;
     }
 
-    > [class*='btn'] {
+    > [class^='btn'] {
       height: 23px;
       min-height: 23px;
 
@@ -19,14 +19,19 @@
         padding-top: 6px;
       }
     }
+
+    &.list-item {
+      &::before {
+        padding: 4px 8px 8px 21px;
+      }
+    }
   }
 
-  &.is-expanded {
-    + .accordion-header {
-      &.is-focused:not(.hide-focus),
-      &.is-selected {
-        border-top-color: $accordion-focused-border-color;
-      }
+  // Level 2 Accordion Pane
+  .accordion-pane {
+    // Level 3 Accordion Header
+    .accordion-header {
+      @include left-align-cascade-styles-header(40px, 34px, 61px, 41px);
     }
   }
 }
@@ -46,7 +51,7 @@ html {
   &:not([dir='rtl']):not(.is-firefox):not(.ie11) {
     .accordion-pane {
       .accordion-header {
-        > [class*='btn'] {
+        > [class^='btn'] {
           height: 24px;
           min-height: 24px;
         }

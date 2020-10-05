@@ -39,10 +39,15 @@ describe('Dropdown updates, events', () => {
       reload: 'none',
       showEmptyGroupHeaders: false,
       showSelectAll: false,
+      showSearchUnderSelected: false,
       sourceArguments: {},
       onKeyDown: null,
       showTags: false,
-      tagSettings: {}
+      tagSettings: {},
+      allTextString: null,
+      selectedTextString: null,
+      tagListMaxHeight: 120,
+      selectAllFilterOnly: true
     };
 
     expect(dropdownObj.settings).toEqual(settings);
@@ -63,10 +68,15 @@ describe('Dropdown updates, events', () => {
       reload: 'none',
       showEmptyGroupHeaders: false,
       showSelectAll: false,
+      showSearchUnderSelected: false,
       sourceArguments: {},
       onKeyDown: null,
       showTags: false,
-      tagSettings: {}
+      tagSettings: {},
+      allTextString: null,
+      selectedTextString: null,
+      tagListMaxHeight: 120,
+      selectAllFilterOnly: true
     };
 
     dropdownObj.updated();
@@ -91,10 +101,15 @@ describe('Dropdown updates, events', () => {
       reload: 'none',
       showEmptyGroupHeaders: false,
       showSelectAll: false,
+      showSearchUnderSelected: false,
       sourceArguments: {},
       onKeyDown: null,
       showTags: false,
-      tagSettings: {}
+      tagSettings: {},
+      allTextString: null,
+      selectedTextString: null,
+      tagListMaxHeight: 120,
+      selectAllFilterOnly: true
     };
     dropdownObj.updated(settings);
 
@@ -125,10 +140,15 @@ describe('Dropdown updates, events', () => {
       reloadSourceOnOpen: false,
       showEmptyGroupHeaders: false,
       showSelectAll: false,
+      showSearchUnderSelected: false,
       sourceArguments: {},
       onKeyDown: null,
       showTags: false,
-      tagSettings: {}
+      tagSettings: {},
+      allTextString: null,
+      selectedTextString: null,
+      tagListMaxHeight: 120,
+      selectAllFilterOnly: true
     };
 
     const spyEvent = spyOnEvent('.dropdown', 'has-updated');

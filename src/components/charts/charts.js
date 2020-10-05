@@ -12,7 +12,7 @@ charts.isIE = env.browser.name === 'ie';
 charts.isIEEdge = env.browser.name === 'edge';
 
 /**
- * Get the current height and widthe of the tooltip.
+ * Get the current height and width of the tooltip.
  * @private
  * @param  {string} content The tooltip content.
  * @returns {object} Object with the height and width.
@@ -31,6 +31,7 @@ charts.tooltipSize = function tooltipSize(content) {
  */
 charts.formatToSettings = function formatToSettings(data, settings) {
   const d = data.data ? data.data : data;
+  const percentValue = (settings.formatter && settings.formatter !== '.0f' ? d3.format(settings.formatter)(d.percent) : `${isNaN(d.percentRound) ? 0 : d.percentRound}%`);
 
   if (settings.show === 'value') {
     return settings.formatter ? d3.format(settings.formatter)(d.value) : d.value;
@@ -41,7 +42,7 @@ charts.formatToSettings = function formatToSettings(data, settings) {
   }
 
   if (settings.show === 'label (percent)') {
-    return `${d.name} (${isNaN(d.percentRound) ? 0 : d.percentRound}%)`;
+    return `${d.name} (${percentValue})`;
   }
 
   if (settings.show === 'label (value)') {
@@ -49,7 +50,7 @@ charts.formatToSettings = function formatToSettings(data, settings) {
   }
 
   if (settings.show === 'percent') {
-    return `${isNaN(d.percentRound) ? 0 : d.percentRound}%`;
+    return percentValue;
   }
 
   if (typeof settings.show === 'function') {
@@ -68,7 +69,8 @@ charts.formatToSettings = function formatToSettings(data, settings) {
 charts.appendTooltip = function appendTooltip(extraClass) {
   this.tooltip = $('#svg-tooltip');
   if (this.tooltip.length === 0) {
-    this.tooltip = $(`<div id="svg-tooltip" class="tooltip ${extraClass} right is-hidden">
+    extraClass = extraClass ? ` ${extraClass}` : '';
+    this.tooltip = $(`<div id="svg-tooltip" class="tooltip right is-hidden${extraClass}">
       <div class="arrow"></div>
         <div class="tooltip-content">
           <p><b>32</b> Element</p>
@@ -273,8 +275,9 @@ charts.chartColorName = function chartColor(i, chartType, data) {
  * @param  {number} y The y position.
  * @param  {string} content The tooltip contents.
  * @param  {string} arrow The arrow direction.
+ * @param  {object} customCss Some custom tooltip css settings.
  */
-charts.showTooltip = function (x, y, content, arrow) {
+charts.showTooltip = function (x, y, content, arrow, customCss) {
   // Simple Collision of left side
   if (x < 0) {
     x = 2;
@@ -285,6 +288,9 @@ charts.showTooltip = function (x, y, content, arrow) {
   DOM.html(this.tooltip.find('.tooltip-content'), content, '*');
 
   this.tooltip.removeClass('bottom top left right').addClass(arrow);
+  this.tooltip.css('max-width', (customCss?.tooltip?.maxWidth || ''));
+  this.tooltip.find('.arrow').css('left', (customCss?.arrow?.left || ''));
+
   this.tooltip.removeClass('is-hidden');
 
   // Hide the tooltip when the page scrolls.
@@ -420,8 +426,8 @@ charts.addLegend = function (series, chartType, settings, container) {
     if (innerWidth <= 480 && series[i].data && series[i].data.legendAbbrName) {
       textBlock.replaceWith(`<span class="chart-legend-item-text">${series[i].data.legendAbbrName}</span>`);
     }
-    if (innerWidth >= 481 && innerWidth <= 768 && series[i].data
-      && series[i].data.legendShortName) {
+    if (innerWidth >= 481 && innerWidth <= 768 && series[i].data &&
+      series[i].data.legendShortName) {
       textBlock.replaceWith(`<span class="chart-legend-item-text">${series[i].data.legendShortName}</span>`);
     }
   }
@@ -447,6 +453,8 @@ charts.addLegend = function (series, chartType, settings, container) {
  * @param {object} settings [description]
  */
 charts.handleElementClick = function (line, series, settings) {
+  const api = $(settings?.svg?.node()).closest('.chart-container').data('chart');
+  const noTrigger = api?.initialSelectCall;
   const idx = $(line).index();
   const elem = series[idx];
   let selector;
@@ -457,13 +465,13 @@ charts.handleElementClick = function (line, series, settings) {
 
   if (settings.type === 'pie' || settings.type === 'donut') {
     selector = d3.select(settings.svg.selectAll('.slice').nodes()[idx]);
-  } else if (settings.type === 'column-positive-negative') {
+  } else if (/positive-negative/.test(settings.type)) {
     if (!elem.option || (elem.option && elem.option === 'target')) {
       selector = settings.svg.select('.target-bar');
     } else {
       selector = settings.svg.select(`.bar.${elem.option}`);
     }
-  } else if (['column', 'bar', 'bar-stacked', 'bar-grouped', 'bar-normalized', 'column-grouped', 'column-stacked', 'column-positive-negative'].indexOf(settings.type) !== -1) {
+  } else if (['column', 'bar', 'bar-stacked', 'bar-grouped', 'bar-normalized', 'column-grouped', 'column-stacked', 'column-positive-negative', 'positive-negative'].indexOf(settings.type) !== -1) {
     // Grouped or singlular
     if (settings.isGrouped || settings.isSingle) {
       selector = settings.svg.select(`.series-${idx}`);
@@ -475,18 +483,46 @@ charts.handleElementClick = function (line, series, settings) {
   }
 
   if (['radar', 'pie', 'donut', 'column', 'bar', 'bar-stacked', 'bar-grouped', 'bar-normalized',
-    'column-grouped', 'column-stacked', 'column-positive-negative'].indexOf(settings.type) !== -1) {
+    'column-grouped', 'column-stacked', 'column-positive-negative', 'positive-negative'].indexOf(settings.type) !== -1) {
     charts.clickedLegend = true;
     selector.dispatch('click');
   }
 
   if (elem.selectionObj) {
-    charts.selectElement(d3.select(elem.selectionObj.nodes()[idx]), elem.selectionInverse, elem.data); // eslint-disable-line
+    charts.selectElement(d3.select(elem.selectionObj.nodes()[idx]), elem.selectionInverse, elem.data, undefined, settings.dataset, noTrigger); // eslint-disable-line
   }
 };
 
 // The selected array for this instance.
 charts.selected = [];
+
+/**
+ * Delete all `selected` keys/value from given dataset.
+ * @private
+ * @param  {array} dataset  The data object
+ * @returns  {void}
+ */
+charts.clearSelected = function (dataset) {
+  if (dataset) {
+    const deleteSelected = (obj) => {
+      if (Object.prototype.hasOwnProperty.call(obj, 'selected')) {
+        delete obj.selected;
+      }
+    };
+    const clear = (ds) => {
+      if (Array.isArray(ds)) {
+        ds.forEach((node) => {
+          deleteSelected(node);
+          if (node.data) {
+            clear(node.data);
+          }
+        });
+      }
+      deleteSelected(ds);
+    };
+    clear(dataset);
+  }
+};
 
 /**
  * Select the element and fire the event, make the inverse selector opace.
@@ -495,9 +531,15 @@ charts.selected = [];
  * @param  {object} inverse The opposite selection.
  * @param  {array} data  The data object
  * @param  {object} container  The DOM object
+ * @param  {array} dataset  The dataset object
+ * @param  {boolean} noTrigger  if true will not trigger
  */
-charts.selectElement = function (element, inverse, data, container) {
+charts.selectElement = function (element, inverse, data, container, dataset, noTrigger) {
   const isSelected = element.node() && element.classed('is-selected');
+  charts.clearSelected(dataset);
+  if (!isSelected) {
+    data.selected = true;
+  }
   const triggerData = [{ elem: element.nodes(), data: (!isSelected ? data : {}) }];
 
   inverse.classed('is-selected', false)
@@ -509,7 +551,9 @@ charts.selectElement = function (element, inverse, data, container) {
   charts.selected = $.isEmptyObject(triggerData[0].data) ? [] : triggerData;
 
   // Fire Events
-  $(container).triggerHandler('selected', [triggerData]);
+  if (!noTrigger) {
+    $(container).triggerHandler('selected', [triggerData]);
+  }
 };
 
 /**
@@ -520,10 +564,10 @@ charts.selectElement = function (element, inverse, data, container) {
  */
 charts.setSelectedElement = function (o) {
   let dataset = o.dataset;
-  const isPositiveNegative = o.type === 'column-positive-negative';
+  const isPositiveNegative = /positive-negative/.test(o.type);
   const isBar = /^(bar|bar-stacked|bar-grouped|bar-normalized)$/.test(o.type);
   const isTypePie = o.type === 'pie' || o.type === 'donut';
-  const isTypeColumn = /^(column|column-grouped|column-stacked|column-positive-negative)$/.test(o.type);
+  const isTypeColumn = /^(column|column-grouped|column-stacked|column-positive-negative|positive-negative)$/.test(o.type);
 
   const svg = o.svg;
   const isSingle = o.isSingle;
@@ -556,9 +600,15 @@ charts.setSelectedElement = function (o) {
   pnPositiveText.style('font-weight', 'normal');
   pnNegativeText.style('font-weight', 'normal');
   svg.selectAll('.is-selected').classed('is-selected', false);
+  charts.clearSelected(o.dataset);
 
   if (isTypePie) {
     svg.selectAll('.is-not-selected').classed('is-not-selected', false);
+  }
+  if (isPositiveNegative) {
+    if (Object.prototype.hasOwnProperty.call(o.dataset[0], 'targetBarsSelected')) {
+      delete o.dataset[0].targetBarsSelected;
+    }
   }
 
   // Task make selected
@@ -570,8 +620,8 @@ charts.setSelectedElement = function (o) {
       if (isPositiveNegative) {
         if (o.isTargetBar) {
           o.svg.selectAll('.target-bar').classed('is-selected', true).style('opacity', 1);
-
           pnTargetText.style('font-weight', 'bolder');
+          o.dataset[0].targetBarsSelected = true;
         } else {
           o.svg.selectAll(isPositive ?
             '.bar.positive, .target-bar.positive' : '.bar.negative, .target-bar.negative')
@@ -583,7 +633,9 @@ charts.setSelectedElement = function (o) {
         svg.selectAll('.bar').each(function (d, i) {
           const bar = d3.select(this);
           if (bar.classed('is-selected')) {
-            selectedBars.push({ elem: bar.node(), data: (dataset ? dataset[i] : d) });
+            const bardata = dataset ? dataset[i] : d;
+            bardata.selected = true;
+            selectedBars.push({ elem: bar.node(), bardata });
           }
         });
         triggerData = selectedBars;
@@ -605,21 +657,28 @@ charts.setSelectedElement = function (o) {
             thisData = d;
           }
 
-          if (isBar) {
-            if (thisData[i][o.i]) {
-              thisData = thisData[i][o.i];
-            }
+          if (isBar && !isStacked) {
+            if (isGrouped) {
+              thisData = o.dataset[i].data[o.i];
+            } else {
+              if (thisData[i][o.i]) {
+                thisData = thisData[i][o.i];
+              }
 
-            if (thisData[o.i] && thisData[o.i][i]) {
-              thisData = thisData[o.i][i];
-            }
+              if (thisData[o.i] && thisData[o.i][i]) {
+                thisData = thisData[o.i][i];
+              }
 
-            if (thisData[i] && thisData[i][o.i]) {
-              thisData = thisData[i][o.i];
+              if (thisData[i] && thisData[i][o.i]) {
+                thisData = thisData[i][o.i];
+              }
             }
           } else if (isStacked && !isSingle) {
             if (thisData[thisGroupId] && thisData[thisGroupId].data[i]) {
               thisData = thisData[thisGroupId].data[i];
+            }
+            if (isBar) {
+              o.dataset[thisGroupId].selected = true;
             }
           } else {
             if (thisData[i].data[o.i]) {
@@ -635,6 +694,7 @@ charts.setSelectedElement = function (o) {
             }
           }
 
+          thisData.selected = true;
           selectedBars.push({ elem: bar.node(), data: thisData });
         });
         triggerData = selectedBars;
@@ -669,7 +729,9 @@ charts.setSelectedElement = function (o) {
         thisGroup.selectAll('.bar').each(function (d, i) {
           const bar = d3.select(this);
           if (bar.classed('is-selected')) {
-            selectedBars.push({ elem: bar.node(), data: (dataset ? dataset[i] : d) });
+            const data = dataset ? dataset[i] : d;
+            data.selected = true;
+            selectedBars.push({ elem: bar.node(), data });
           }
         });
         if (isGrouped) {
@@ -694,8 +756,10 @@ charts.setSelectedElement = function (o) {
         const bar = d3.select(this);
         let data = d;
         if (dataset) {
-          data = isBar && isStacked ? dataset[i][o.i] : dataset[i].data[o.i];
+          data = isBar && isStacked && typeof dataset[i][o.i] !== 'undefined' ?
+            dataset[i][o.i] : dataset[i].data[o.i];
         }
+        data.selected = true;
         selectedBars.push({ elem: bar.node(), data });
       });
       triggerData = selectedBars;
@@ -706,9 +770,10 @@ charts.setSelectedElement = function (o) {
         .classed('is-not-selected', true)
         .attr('transform', '');
 
-      const thisArcData = dataset && dataset[0] && dataset[0].data ?  //eslint-disable-line
+      let thisArcData = dataset && dataset[0] && dataset[0].data ?  //eslint-disable-line
         dataset[0].data[o.i] : (o.d ? o.d.data : o.d);  //eslint-disable-line
-
+      thisArcData = thisArcData || {};
+      thisArcData.selected = true;
       selector.classed('is-selected', true)
         .classed('is-not-selected', false)
         .attr('transform', 'scale(1.025, 1.025)');
@@ -912,6 +977,74 @@ charts.triggerContextMenu = function (container, elem, d) {
   e.pageX = d3.event.pageX;
   e.pageY = d3.event.pageY;
   $(container).trigger(e, [elem, d]);
+};
+
+/**
+ * Calculates the width to render given text string.
+ * @private
+ * @param  {string} textStr The text to render.
+ * @param  {object} fonts Optional for each theme.
+ * @returns {number} The calculated text width in pixels.
+ */
+charts.calculateTextRenderWidth = function (textStr, fonts) {
+  const defaultFonts = { soho: '700 12px arial', uplift: '600 14px arial' };
+  fonts = utils.mergeSettings(undefined, fonts, defaultFonts);
+  let themeId = (theme?.currentTheme?.id || '').match(/soho|uplift/);
+  themeId = themeId ? themeId[0] : 'soho';
+  this.canvas = this.canvas || (this.canvas = document.createElement('canvas'));
+  const context = this.canvas.getContext('2d');
+  context.font = fonts[themeId];
+  return context.measureText(textStr).width;
+};
+
+/**
+ * Calculate the percentage for given partial and total value.
+ * @private
+ * @param  {number} value The partial value.
+ * @param  {number} total The total value.
+ * @returns {number} The calculated percentage.
+ */
+charts.calculatePercentage = function (value, total) {
+  return (100 * value) / total;
+};
+
+/**
+ * Get the percent value for given total value and percentage amount.
+ * @private
+ * @param  {number} total The total value.
+ * @param  {number} amount The percentage amount.
+ * @returns {number} The percent value.
+ */
+charts.getPercentage = function (total, amount) {
+  return total * amount / 100;
+};
+
+/**
+ * Trim given text to threshold and add `...` at the end.
+ * @private
+ * @param  {string} text The text to be trimed.
+ * @param  {number} threshold The number of characters.
+ * @returns {number} The calculated percent value.
+ */
+charts.trimText = function (text, threshold) {
+  return text.length <= threshold ? text : `${text.substr(0, threshold)}...`;
+};
+
+/**
+ * Get the label to use for given data and viewport area.
+ * @private
+ * @param  {object} d The data.
+ * @param  {number} viewport The viewport area.
+ * @returns {string} The label to use.
+ */
+charts.getLabel = function (d, viewport) {
+  let r = d.name;
+  if (viewport.xxsmall || viewport.xsmall || viewport.small) {
+    r = d.shortName || d.abbrName || d.name;
+  } else if (viewport.medium) {
+    r = d.abbrName || d.name;
+  }
+  return r;
 };
 
 /**

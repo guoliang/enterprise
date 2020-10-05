@@ -14,10 +14,10 @@
     //Init and get the api for the grid
     grid = $('#datagrid').datagrid({
       columns: getColumns(),
-      selectable: 'mixed',
+      selectable: 'multiple',
       paging: true,
       pagesize: 10,
-      rowHeight: 'short',
+      rowHeight: 'small',
       indeterminate: true,
       filterable: false,
       frozenColumns: {
@@ -42,9 +42,8 @@
           return 0;
         }
       } else if (item && item.isSummaryRow) {
-        // landmark would calculate this
-        // return gridColumns.length - columnIndex - hiddenColumns.length;
-        return 7;
+        // Span the rest of the visible columns minus the first selection checkbox
+        return grid.visibleColumns().length - 1;
       }
       return 0;
     }
@@ -130,8 +129,8 @@
       if (!PAGING_COLUMNS) {
         PAGING_COLUMNS = [
           { id: 'selectionCheckbox', sortable: false, resizable: false, formatter: Formatters.SelectionCheckbox, align: 'center' },
-          { id: 'productType', name: 'Product Type', field: 'productType', sortable: false, filterType: 'integer', formatter: Formatters.Text, colspan: customColSpan },
-          { id: 'productId', name: 'Product Id',   field: 'productId',   sortable: false, filterType: 'integer', formatter: Formatters.Text, colspan: customColSpan },
+          { id: 'productType', name: 'Product Type', field: 'productType', sortable: false, filterType: 'integer', formatter: Formatters.Text, colspan: customColSpan, resizable: false },
+          { id: 'productId', name: 'Product Id',   field: 'productId',   sortable: false, filterType: 'integer', formatter: Formatters.Text, colspan: customColSpan, resizable: false },
           { id: 'productName', name: 'Product Name', field: 'productName', sortable: false, filterType: 'text', formatter: Formatters.Hyperlink, colspan: customColSpan },
           { id: 'price', name: 'Price', field: 'price', sortable: false, filterType: 'decimal', formatter: Formatters.Decimal, colspan: customColSpan },
           { id: 'quantity', name: 'Quantity', field: 'quantity', sortable: false, colspan: customColSpan },

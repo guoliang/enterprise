@@ -22,6 +22,7 @@ const SLIDER_DEFAULTS = {
   step: undefined,
   ticks: [],
   tooltipContent: undefined,
+  tooltipPosition: 'top',
   persistTooltip: false
 };
 
@@ -37,6 +38,7 @@ const SLIDER_DEFAULTS = {
  * @param {undefined|Number} [settings.step] If added will be the number of slider steps to use.
  * @param {array} [settings.ticks = []] An array of the ticks to use for the steps
  * @param {undefined|Array} [settings.tooltipContent] Special customizable tooltip content.
+ * @param {string} [settings.tooltipPosition = 'top'] Option to control the position of tooltip. ['top' , 'bottom']
  * @param {boolean} [settings.persistTooltip = false] If true the tooltip will stay visible.
  */
 function Slider(element, settings) {
@@ -76,7 +78,6 @@ function getDistance(pointA, pointB) {
 
 // Actual Plugin Code
 Slider.prototype = {
-
   /**
    * @private
    * @returns {this} component instance
@@ -112,6 +113,10 @@ Slider.prototype = {
 
     if (this.settings.value === '') {
       this.settings.value = this.settings.min;
+    }
+
+    if (this.settings.step === 1) {
+      this.settings.step = undefined;
     }
 
     // build tick list
@@ -343,7 +348,7 @@ Slider.prototype = {
           content() {
             return `${self.getModifiedTextValue(Math.floor(self.value()[i]))}`;
           },
-          placement: (isVertical ? 'right' : 'bottom'),
+          placement: (isVertical ? 'right' : self.settings.tooltipPosition),
           trigger: 'focus',
           keepOpen: self.settings.persistTooltip
         });
@@ -423,8 +428,6 @@ Slider.prototype = {
       } else {
         self.value([rangeVal]);
       }
-    } else {
-      self.value([rangeVal]);
     }
 
     self.checkHandleDifference(targetHandle, targetOldVal, rangeVal);
@@ -851,10 +854,6 @@ Slider.prototype = {
    * @param {number} updatedVal the target value
    */
   checkHandleDifference(handle, originalVal, updatedVal) {
-    // IE9 doesn't support animation so return immediately.
-    if ($('html').hasClass('ie9')) {
-      return;
-    }
     const origPercent = this.convertValueToPercentage(originalVal);
     const updatedPercent = this.convertValueToPercentage(updatedVal);
 
@@ -1014,7 +1013,9 @@ Slider.prototype = {
       });
     });
 
-    self.element.trigger('change');
+    if (this.element.next().find('.slider-handle.is-dragging').length === 0) {
+      self.element.trigger('change', { element: self.element, value: self._value });
+    }
     return self._value;
   },
 
@@ -1058,11 +1059,14 @@ Slider.prototype = {
     this.element.prop('disabled', true);
     this.element.prop('readonly', false);
     this.wrapper.removeClass('is-readonly');
-    this.wrapper.addClass('is-disabled');
 
-    const self = this;
-    $.each(this.handles, (i, handle) => {
-      self.disableHandleDrag(handle);
+    setTimeout(() => {
+      this.wrapper.addClass('is-disabled');
+
+      const self = this;
+      $.each(this.handles, (i, handle) => {
+        self.disableHandleDrag(handle);
+      });
     });
 
     return this;

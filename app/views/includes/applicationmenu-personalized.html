@@ -3,7 +3,7 @@
   <!--This wrapper simulates an issue in NG  its only not needed on the ng component-->
   <div class="application-menu-wrapper">
     <div class="application-menu-header">
-      <img src="/images/11.jpg" class="icon avatar" alt="Photo of Richard Fairbanks"/>
+      <img src="{{basepath}}/images/11.jpg" class="icon avatar" alt="Photo of Richard Fairbanks"/>
       <span class="name-xl">Richard <br /> Fairbanks</span>
       <div class="application-menu-toolbar center-text">
         <div class="flex-toolbar">
@@ -63,6 +63,9 @@
         <div class="accordion-header">
           <a href="#"><span>Find a Coworker</span></a>
         </div>
+        <div class="accordion-header">
+          <a href="#"><span>Example of a menu item that truncates since its too long</span></a>
+        </div>
       </div>
     </div>
 
@@ -80,16 +83,19 @@
             <svg class="icon" focusable="false" aria-hidden="true" role="presentation">
               <use href="#icon-employee-directory"></use>
             </svg>
+            <span class="audible">Proxy as user</span>
           </button>
           <button class="btn-icon" type="button" title="About this App">
             <svg class="icon" focusable="false" aria-hidden="true" role="presentation">
               <use href="#icon-info-linear"></use>
             </svg>
+            <span class="audible">About this App</span>
           </button>
           <button class="btn-icon" type="button" title="Log Out">
             <svg class="icon" focusable="false" aria-hidden="true" role="presentation">
               <use href="#icon-logout"></use>
             </svg>
+            <span class="audible">About this App</span>
           </button>
           </div>
         </div>

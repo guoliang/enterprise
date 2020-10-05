@@ -26,6 +26,7 @@ const COMPONENT_NAME_DEFAULTS = {
   showViewChanger: true,
   onRenderMonth: null,
   template: null,
+  mobileTemplate: null,
   upcomingEventDays: 14,
   modalTemplate: null,
   menuId: null,
@@ -46,7 +47,18 @@ const COMPONENT_NAME_DEFAULTS = {
     endHour: 19,
     showAllDay: true,
     showTimeLine: true
-  }
+  },
+  disable: {
+    callback: null,
+    dates: [],
+    years: [],
+    minDate: '',
+    maxDate: '',
+    dayOfWeek: [],
+    isEnable: false,
+    restrictMonths: false
+  },
+  dayLegend: null
 };
 
 /**
@@ -67,6 +79,7 @@ const COMPONENT_NAME_DEFAULTS = {
  * @param {function} [settings.onSelected] Fires when a month day is clicked. Allowing you to do something.
  * @param {function} [settings.onChangeView] Call back for when the view changer is changed.
  * @param {string} [settings.template] The ID of the template used for the events.
+ * @param {string} [settings.mobileTemplate] The ID of the template on mobile responsive used for the events.
  * @param {string} [settings.modalTemplate] The ID of the template used for the modal dialog on events.
  * @param {string} [settings.menuId=null] ID of the menu to use for an event right click context menu
  * @param {string} [settings.menuSelected=null] Callback for the  right click context menu
@@ -80,6 +93,27 @@ const COMPONENT_NAME_DEFAULTS = {
  * @param {number} [settings.weekViewSettings.endHour=19] The hour (0-24) to end on each day.
  * @param {boolean} [settings.weekViewSettings.showAllDay=true] Detemines if the all day events row should be shown.
  * @param {boolean} [settings.weekViewSettings.showTimeLine=true] Shows a bar across the current time.
+ * @param {object} [settings.disable] Disable dates in various ways.
+ * For example `{minDate: 'M/d/yyyy', maxDate: 'M/d/yyyy'}`. Dates should be in format M/d/yyyy
+ * or be a Date() object or string that can be converted to a date with new Date().
+ * @param {function} [settings.disable.callback] return true to disable passed dates.
+ * @param {array} [settings.disable.dates] Disable specific dates.
+ * Example `{dates: ['12/31/2018', '01/01/2019']}`.
+ * @param {array} [settings.disable.years] Disable specific years.
+ * Example `{years: [2018, 2019]}`.
+ * @param {string|date} [settings.disable.minDate] Disable up to a minimum date.
+ * Example `{minDate: '12/31/2016'}`.
+ * @param {string|date} [settings.disable.maxDate] Disable up to a maximum date.
+ * Example `{minDate: '12/31/2019'}`.
+ * @param {array} [settings.disable.dayOfWeek] Disable a specific of days of the week 0-6.
+ * Example `{dayOfWeek: [0,6]}`.
+ * @param {boolean} [settings.disable.isEnable=false] Inverse the disable settings.
+ * If true all the disable settings will be enabled and the rest will be disabled.
+ * So you can inverse the settings.
+ * @param {boolean} [settings.disable.retrictMonths=false] Restrict month selections on datepicker.
+ * It requires minDate and maxDate for the feature to activate.
+ * For example if you have more non specific dates to disable then enable ect.
+ * @param {array} [settings.dayLegend] Allows you to set legend for days. This is passed to the legend option in Monthview but only the colors and dates part are used since the calendar already has a legend.
  */
 function Calendar(element, settings) {
   this.settings = utils.mergeSettings(element, settings, COMPONENT_NAME_DEFAULTS);
@@ -109,7 +143,8 @@ Calendar.prototype = {
       .renderEventTypes()
       .renderMonthView()
       .renderWeekView()
-      .handleEvents();
+      .handleEvents()
+      .addEventLegend();
 
     return this;
   },
@@ -140,6 +175,32 @@ Calendar.prototype = {
   setCurrentCalendar() {
     this.isRTL = (this.locale.direction || this.locale.data.direction) === 'right-to-left';
     return this;
+  },
+
+  /**
+   * Display event legends below the calendar table on mobile view.
+   * @private
+   * @returns {void}
+   */
+  addEventLegend() {
+    const s = this.settings;
+
+    this.eventLegend = $('<div class="calendar-event-legend"></div>');
+    this.monthviewTable = $('.monthview-table');
+
+    for (let i = 0; i < s.eventTypes.length; i++) {
+      const event = s.eventTypes[i];
+      const color = event.color;
+
+      const legend = '' +
+        `<div class="calendar-event-legend-item">
+          <span class="calendar-event-legend-swatch ${color}"></span>
+          <span class="calendar-event-legend-text">${event.label}</span>
+        </div>`;
+
+      this.eventLegend.append(legend);
+    }
+    this.monthviewTable.after(this.eventLegend);
   },
 
   /**
@@ -194,7 +255,10 @@ Calendar.prototype = {
       iconTooltip: this.iconTooltip,
       showToday: this.settings.showToday,
       showViewChanger: this.settings.showViewChanger,
-      onChangeView: this.onChangeToMonth
+      onChangeView: this.onChangeToMonth,
+      disable: this.settings.disable,
+      showLegend: this.settings.dayLegend !== null,
+      legend: this.settings.dayLegend
     });
     this.monthViewHeader = document.querySelector('.calendar .monthview-header');
     this.renderAllEvents();
@@ -378,21 +442,55 @@ Calendar.prototype = {
     if (!this.eventDetailsContainer) {
       return;
     }
+
     const thisEvent = $.extend(true, {}, eventData[0]);
     if (thisEvent.durationHours && !thisEvent.isDays) {
       calendarShared.formateTimeString(thisEvent, this.locale, this.language);
     }
-    this.renderTmpl(thisEvent, this.settings.template, this.eventDetailsContainer, count > 1);
+    this.renderTmpl(
+      thisEvent,
+      this.settings.template,
+      this.eventDetailsContainer,
+      count > 1
+    );
+
+    this.eventDetailsMobileContainer = document.querySelector('.calendar-event-details-mobile.listview');
+    if (this.eventDetailsMobileContainer) {
+      this.renderTmpl(
+        thisEvent,
+        this.settings.mobileTemplate,
+        this.eventDetailsMobileContainer,
+        count > 1
+      );
+    }
 
     const api = $(this.eventDetailsContainer).data('accordion');
     if (api) {
       api.destroy();
     }
-    $(this.eventDetailsContainer).accordion();
 
-    if (DOM.hasClass(this.eventDetailsContainer, 'has-only-one')) {
-      $(this.eventDetailsContainer).find('.accordion-header, .accordion-header a').off('click');
+    if (this.eventDetailsMobileContainer) {
+      this.translate(this.eventDetailsMobileContainer);
     }
+
+    this.translate(this.eventDetailsContainer);
+  },
+
+  /**
+   * Translate elements in a DOM object
+   * @private
+   * @param  {object} elem The DOM Element
+   */
+  translate(elem) {
+    $(elem).find('[data-translate="text"]').each((i, item) => {
+      const obj = $(item);
+      obj.text(Locale.translate(obj.attr('data-translate-key') || obj.text(), {
+        showAsUndefined: false,
+        showBrackets: false,
+        language: this.settings.language,
+        locale: this.settings.locale
+      }));
+    });
   },
 
   /**
@@ -409,6 +507,19 @@ Calendar.prototype = {
     for (let i = 0; i < dayObj.events.length; i++) {
       this.renderEventDetails(dayObj.events[i].id, dayObj.events.length);
     }
+
+    $('.calendar .list-detail', this.element).css('display', 'block');
+
+    $(this.eventDetailsContainer).accordion();
+    if (this.eventDetailsMobileContainer) {
+      $(this.eventDetailsMobileContainer).addClass('listview').listview({ selectable: false, hoverable: false });
+    }
+
+    if (DOM.hasClass(this.eventDetailsContainer, 'has-only-one')) {
+      $(this.eventDetailsContainer).find('.accordion-header, .accordion-header a').off('click');
+    }
+
+    $('.accordion-pane.no-transition', this.element).removeClass('no-transition');
   },
 
   /**
@@ -441,8 +552,14 @@ Calendar.prototype = {
    */
   clearEventDetails() {
     this.eventDetailsContainer = document.querySelector('.calendar-event-details');
+    this.eventDetailsMobileContainer = document.querySelector('.calendar-event-details-mobile.listview');
+
     if (this.eventDetailsContainer) {
       this.eventDetailsContainer.innerHTML = '';
+    }
+
+    if (this.eventDetailsMobileContainer) {
+      this.eventDetailsMobileContainer.innerHTML = '';
     }
   },
 
@@ -506,6 +623,7 @@ Calendar.prototype = {
       if (filters.indexOf(event.type) > -1) {
         continue;
       }
+
       self.renderEvent(event);
     }
 
@@ -526,19 +644,38 @@ Calendar.prototype = {
 
     // Check for events starting on this day , or only on this day.
     const startDate = Locale.newDateObj(event.starts);
-    const startKey = stringUtils.padDate(
+    const isIslamic = Locale.isIslamic(this.locale.name);
+    let startKey = stringUtils.padDate(
       startDate.getFullYear(),
       startDate.getMonth(),
-      startDate.getDate(),
+      startDate.getDate()
     );
+
+    if (isIslamic) {
+      const startDateIslamic = Locale.gregorianToUmalqura(startDate);
+      startKey = stringUtils.padDate(
+        startDateIslamic[0],
+        startDateIslamic[1],
+        startDateIslamic[2]
+      );
+    }
 
     // Check for events extending onto this day
     const endDate = Locale.newDateObj(event.ends);
-    const endKey = stringUtils.padDate(
+    let endKey = stringUtils.padDate(
       endDate.getFullYear(),
       endDate.getMonth(),
       endDate.getDate()
     );
+
+    if (isIslamic) {
+      const endDateIslamic = Locale.gregorianToUmalqura(endDate);
+      endKey = stringUtils.padDate(
+        endDateIslamic[0],
+        endDateIslamic[1],
+        endDateIslamic[2]
+      );
+    }
 
     const days = self.monthView.dayMap.filter(day => day.key >= startKey && day.key <= endKey);
     event.endKey = endKey;
@@ -592,6 +729,11 @@ Calendar.prototype = {
       calendarEvents[i].parentNode.removeChild(calendarEvents[i]);
     }
 
+    const calendarEventSpacers = this.monthViewContainer.querySelectorAll('.calendar-event-spacer');
+    for (let i = 0; i < calendarEventSpacers.length; i++) {
+      calendarEventSpacers[i].parentNode.removeChild(calendarEventSpacers[i]);
+    }
+
     for (let i = 0; i < this.monthView.dayMap.length; i++) {
       this.monthView.dayMap[i].events = [];
     }
@@ -617,7 +759,7 @@ Calendar.prototype = {
       this.monthView.dayMap[idx].events.push(event);
     }
 
-    if (eventCnt >= 2) {
+    if (eventCnt >= 3) {
       const moreSpan = container.querySelector('.calendar-event-more');
       const setMoreSpan = (elem, count) => {
         elem.setAttribute('data-count', count);
@@ -648,10 +790,39 @@ Calendar.prototype = {
     node.setAttribute('data-id', event.id);
     node.setAttribute('data-key', event.startKey);
 
+    // Let the border color / color be overriden
+    if (event.color?.substr(0, 1) === '#') {
+      node.style.backgroundColor = event.color;
+      node.classList.remove(event.color);
+    }
+
+    if (event.borderColor?.substr(0, 1) === '#') {
+      node.style.borderLeftColor = event.borderColor;
+    }
+
     node.innerHTML = `<div class="calendar-event-content">
       ${event.icon ? `<span class="calendar-event-icon"><svg class="icon ${event.icon}" focusable="false" aria-hidden="true" role="presentation" data-status="${event.status}"><use href="#${event.icon}"></use></svg></span>` : ''}
       <span class="calendar-event-title">${event.shortSubject || event.subject}</span>
     </div>`;
+
+    // Make sure we are on the same "level", when events overlap
+    const eventHead = this.monthViewContainer.querySelectorAll(`.calendar-event.event-day-start[data-id="${event.id}"]`);
+
+    if (eventHead[0]) {
+      const children = eventHead[0].parentNode.children;
+      for (let i = container.querySelector('.day-container').children.length; i < children.length; i++) {
+        const dataid = children[i].getAttribute('data-id');
+        if (dataid === event.id) {
+          break;
+        }
+        if (!children[i].classList.contains('day-text')) {
+          const spacer = document.createElement('span');
+          spacer.classList.add('calendar-event-spacer');
+          container.querySelector('.day-container').appendChild(spacer);
+        }
+      }
+    }
+
     container.querySelector('.day-container').appendChild(node);
 
     if (this.settings.iconTooltip !== 'overflow') {
@@ -775,7 +946,7 @@ Calendar.prototype = {
       const eventData = this.settings.events.filter(event => event.id === eventId);
       this.element.triggerHandler('contextmenu', { originalEvent: e, month: this.settings.month, year: this.settings.year, event: eventData[0] });
 
-      if (!self.isSubscribedTo(e, 'contextmenu') && !hasMenu()) {
+      if (!utils.isSubscribedTo(self.element[0], e, 'contextmenu', 'calendar') && !hasMenu()) {
         return true;
       }
       e.preventDefault();
@@ -806,21 +977,6 @@ Calendar.prototype = {
       return false;
     });
 
-    const showModalWithCallback = (eventData, isAdd, eventTarget) => {
-      this.showEventModal(eventData, (elem, event) => {
-        // Collect the data and popuplate the event object
-        const inputs = elem.querySelectorAll('input, textarea, select');
-        for (let i = 0; i < inputs.length; i++) {
-          event[inputs[i].id] = inputs[i].getAttribute('type') === 'checkbox' ? inputs[i].checked : inputs[i].value;
-        }
-        if (isAdd) {
-          this.addEvent(event);
-        } else {
-          this.updateEvent(event);
-        }
-      }, eventTarget);
-    };
-
     let timer = 0;
     const delay = 100;
     let prevent = false;
@@ -838,7 +994,7 @@ Calendar.prototype = {
             e.currentTarget.classList.contains('event-day-end')) {
             eventTarget = self.element.find(`.event-day-start[data-id="${target.attr('data-id')}"] .calendar-event-title`);
           }
-          showModalWithCallback(eventData[0], false, eventTarget);
+          this.showModalWithCallback(eventData[0], false, eventTarget);
           /**
            * Fires when an event in the calendar is clicked.
            * @event eventclick
@@ -895,7 +1051,7 @@ Calendar.prototype = {
         this.settings.events,
         this.settings.eventTypes
       );
-      showModalWithCallback(eventData, true);
+      this.showModalWithCallback(eventData, true);
 
       /**
        * Fires when the calendar day is double clicked.
@@ -906,27 +1062,21 @@ Calendar.prototype = {
        */
       this.element.triggerHandler('dblclick', { eventData, api: this });
     });
+
+    // Set up mobile list view events
+    this.element.find('.listview')
+      .off(`click.${COMPONENT_NAME}-mobile`)
+      .on(`click.${COMPONENT_NAME}-mobile`, (e) => {
+        const target = $(e.target).closest('li');
+        const mobileEventId = target.attr('data-id');
+        const mobileEventData = this.settings.events.filter(event => event.id === mobileEventId);
+        if (!mobileEventData || mobileEventData.length === 0) {
+          return;
+        }
+        this.showModalWithCallback(mobileEventData[0], false, target);
+        this.element.triggerHandler('eventclick', { month: this.settings.month, year: this.settings.year, event: mobileEventData[0] });
+      });
     return this;
-  },
-
-  /**
-   * Check if the event is subscribed to.
-   * @private
-   * @param {object} e The update empty message config object.
-   * @param {string} eventName The update empty message config object.
-   * @returns {boolean} If the event is subscribed to.
-   */
-  isSubscribedTo(e, eventName) {
-    const self = this;
-    const calendarEvents = $._data(self.element[0]).events;
-
-    for (const event in calendarEvents) { //eslint-disable-line
-      if (event === eventName && !(calendarEvents[event].length === 1 && calendarEvents[event][0].namespace === 'calendar')) {
-        return true;
-      }
-    }
-
-    return false;
   },
 
   /**
@@ -983,7 +1133,7 @@ Calendar.prototype = {
    * @returns {date} the currently selected date on the control.
    */
   currentDate() {
-    const ret = this.isIslamic ? this.monthView.currentIslamicDate : this.monthView.currentDate;
+    const ret = this.isIslamic ? this.monthView.currentDateIslamic : this.monthView.currentDate;
     if (!Locale.isValidDate(ret)) {
       return new Date();
     }
@@ -1008,11 +1158,12 @@ Calendar.prototype = {
       );
     }
 
-    if (this.isRTL) {
+    if (Locale.isIslamic(this.locale.name)) {
+      const dateIslamic = Locale.gregorianToUmalqura(date);
       date = stringUtils.padDate(
-        date[0],
-        date[1],
-        date[2],
+        dateIslamic[0],
+        dateIslamic[1],
+        dateIslamic[2]
       );
     }
 
@@ -1058,11 +1209,20 @@ Calendar.prototype = {
       }
     }
 
-    event.color = calendarShared.getEventTypeColor(event.type, this.settings.eventTypes);
+    event.color = calendarShared.getEventTypeColor(event, this.settings.eventTypes);
     event.startsLong = Locale.formatDate(event.starts, { date: 'long', locale: this.locale.name });
     event.endsLong = Locale.formatDate(event.ends, { date: 'long', locale: this.locale.name });
     event.startsHoursLong = `${Locale.formatDate(event.starts, { date: 'long', locale: this.locale.name })} ${Locale.formatDate(event.starts, { date: 'hour', locale: this.locale.name })}`;
     event.endsHoursLong = `${Locale.formatDate(event.ends, { date: 'long', locale: this.locale.name })} ${Locale.formatDate(event.ends, { date: 'hour', locale: this.locale.name })}`;
+
+    if (Locale.isIslamic(this.locale.name)) {
+      const startsIslamic = Locale.gregorianToUmalqura(new Date(event.starts));
+      const endsIslamic = Locale.gregorianToUmalqura(new Date(event.ends));
+      event.startsLong = Locale.formatDate(startsIslamic, { date: 'long', locale: this.locale.name });
+      event.endsLong = Locale.formatDate(endsIslamic, { date: 'long', locale: this.locale.name });
+      event.startsHoursLong = `${Locale.formatDate(startsIslamic, { date: 'long', locale: this.locale.name })} ${Locale.formatDate(startsIslamic, { date: 'hour', locale: this.locale.name })}`;
+      event.endsHoursLong = `${Locale.formatDate(endsIslamic, { date: 'long', locale: this.locale.name })} ${Locale.formatDate(endsIslamic, { date: 'hour', locale: this.locale.name })}`;
+    }
     event.typeLabel = this.getEventTypeLabel(event.type);
 
     const renderedTmpl = Tmpl.compile(template, { event });
@@ -1214,7 +1374,7 @@ Calendar.prototype = {
       title: event.title || event.subject,
       trigger: 'immediate',
       keepOpen: true,
-      extraClass: 'calendar-popup',
+      extraClass: 'calendar-popup calendar-popup-mobile',
       tooltipElement: '#calendar-popup',
       headerClass: event.color,
       initializeContent: false
@@ -1271,15 +1431,7 @@ Calendar.prototype = {
         // Init the contents
         elem.find('.datepicker').datepicker({ locale: this.settings.locale, language: this.settings.language });
         elem.find('.timepicker').timepicker({ locale: this.settings.locale, language: this.settings.language });
-        elem.find('[data-translate="text"]').each((i, item) => {
-          const obj = $(item);
-          obj.text(Locale.translate(obj.attr('data-translate-key') || obj.text(), {
-            showAsUndefined: false,
-            showBrackets: false,
-            language: this.settings.language,
-            locale: this.settings.locale
-          }));
-        });
+        this.translate(elem);
       });
 
     $('#calendar-popup').one('tooltipafterplace.calendar', (e, args) => {
@@ -1300,6 +1452,29 @@ Calendar.prototype = {
       }
     });
     this.activeElem = eventTarget;
+  },
+
+  /**
+   * Show the event modal and run a callback.
+   * @private
+   * @param {object} eventData Data from the event object
+   * @param {boolean} isAdd Open the modal in readnly mode vs edit mode
+   * @param {object} eventTarget The element to point the dialog at
+   * @returns {void}
+   */
+  showModalWithCallback(eventData, isAdd, eventTarget) {
+    this.showEventModal(eventData, (elem, event) => {
+      // Collect the data and popuplate the event object
+      const inputs = elem.querySelectorAll('input, textarea, select');
+      for (let i = 0; i < inputs.length; i++) {
+        event[inputs[i].id] = inputs[i].getAttribute('type') === 'checkbox' ? inputs[i].checked : inputs[i].value;
+      }
+      if (isAdd) {
+        this.addEvent(event);
+      } else {
+        this.updateEvent(event);
+      }
+    }, eventTarget);
   },
 
   /**
@@ -1339,7 +1514,8 @@ Calendar.prototype = {
     if (settings) {
       this.settings = utils.mergeSettings(this.element[0], settings, this.settings);
     }
-    if (settings.locale || settings.template || settings.upcomingEventDays) {
+    if (settings.locale || settings.template ||
+      settings.upcomingEventDays || settings.mobileTemplate) {
       this.destroy().init();
       return this;
     }
@@ -1374,7 +1550,10 @@ Calendar.prototype = {
    * @returns {object} The Component prototype, useful for chaining.
    */
   teardown() {
-    this.element.off();
+    if (this.element) {
+      this.element.off();
+    }
+
     $(this.monthViewContainer).off();
 
     if (this.monthView) {
@@ -1405,6 +1584,10 @@ Calendar.prototype = {
     if (this.eventDetailsContainer) {
       this.eventDetailsContainer.innerHTML = '';
     }
+    if (this.eventDetailsMobileContainer) {
+      this.eventDetailsMobileContainer.innerHTML = '';
+    }
+
     this.removeModal();
     this.teardown();
     $.removeData(this.element[0], COMPONENT_NAME);

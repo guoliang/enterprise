@@ -5,8 +5,9 @@ const csrf = require('csurf');
 const session = require('express-session');
 const mmm = require('mmm');
 const path = require('path');
-const utils = require('./src/js/utils');
 const crypto = require('crypto');
+
+const utils = require('./src/js/utils');
 const getJSONFile = require('./src/js/get-json-file');
 
 const app = express();
@@ -47,6 +48,7 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
+    sameSite: 'lax',
     secure: false
   }
 }));
@@ -82,7 +84,8 @@ csp.extend(app);
 
 // Import various custom middleware (order matters!)
 app.use(require('./src/js/middleware/request-logger')(app));
-app.use(require('./src/js/middleware/option-handler')(app, DEFAULT_RESPONSE_OPTS));
+app.use(require('./src/js/middleware/cmd-params-handler')(app, DEFAULT_RESPONSE_OPTS));
+app.use(require('./src/js/middleware/option-handler')(app));
 app.use(require('./src/js/middleware/option-handler-themes')(app));
 app.use(require('./src/js/middleware/option-handler-fonts')());
 app.use(require('./src/js/middleware/basepath-handler')(app));
@@ -127,9 +130,7 @@ router.get('/kitchen-sink', (req, res) => {
 app.use('/behaviors', generalRoute);
 app.use('/components', customRoutes);
 app.use('/components', generalRoute);
-app.use('/patterns', generalRoute);
 app.use('/examples', generalRoute);
-app.use('/layouts', generalRoute);
 app.use('/utils', generalRoute);
 
 // =========================================

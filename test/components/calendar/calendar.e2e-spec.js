@@ -95,7 +95,7 @@ describe('Calendar ajax loading tests', () => {
 
     expect(await element(by.css('.calendar-monthview #monthview-datepicker-field')).getText()).toEqual(testDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
     expect(await element.all(by.css('.calendar-event-more')).count()).toEqual(0);
-    expect(await element.all(by.css('.calendar-event.graphite')).count()).toEqual(1);
+    expect(await element.all(by.css('.calendar-event.slate')).count()).toEqual(1);
     expect(await element.all(by.css('.calendar-event.emerald')).count()).toEqual(1);
   });
 });
@@ -331,5 +331,106 @@ describe('Calendar WeekView settings tests', () => {
     await browser.switchTo().activeElement().sendKeys(protractor.Key.TAB);
 
     expect(await element(by.css('.week-view ')).isDisplayed()).toBe(true);
+  });
+});
+
+describe('Calendar RTL tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/calendar/test-specific-month.html?locale=ar-SA&layout=nofrills');
+    await browser.driver
+      .wait(protractor.ExpectedConditions
+        .visibilityOf(await element(by.css('.monthview-table tr th:nth-child(7)'))), config.waitsFor);
+  });
+
+  it('Should render without error', async () => {
+    expect(await element.all(by.css('.monthview-table td')).count()).toEqual(42);
+    expect(await element.all(by.css('.monthview-table .calendar-event')).count()).toEqual(2);
+    await utils.checkForErrors();
+  });
+
+  it('Should be able to go to next and prev month', async () => {
+    await element(by.css('.monthview-header .prev')).click();
+
+    expect(await element(by.css('.calendar-monthview #monthview-datepicker-field')).getText()).toEqual('ذو الحجة 1439');
+    expect(await element.all(by.css('.monthview-table .calendar-event')).count()).toEqual(5);
+    await element(by.css('.monthview-header .next')).click();
+    await element(by.css('.monthview-header .next')).click();
+
+    expect(await element(by.css('.calendar-monthview #monthview-datepicker-field')).getText()).toEqual('صفر 1440');
+    expect(await element.all(by.css('.monthview-table .calendar-event')).count()).toEqual(21);
+  });
+});
+
+describe('Calendar allow one pane tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/calendar/test-allow-single-pane');
+
+    const pane = await element.all(by.css('.calendar-event-details .accordion-pane')).first();
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(pane), config.waitsFor);
+  });
+
+  it('Should only allow one pane open at a time', async () => {
+    await utils.checkForErrors();
+
+    expect(await element.all(by.css('.calendar-event-details .accordion-pane.is-expanded')).count()).toEqual(1);
+
+    const buttonEl = await element(by.css('.calendar-event-details > div:nth-child(5) button'));
+    await buttonEl.click();
+
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(await element(by.css('.calendar-event-details > div:nth-child(6).is-expanded'))), config.waitsFor);
+    await browser.driver.sleep(1000);
+
+    expect(await element.all(by.css('.calendar-event-details .accordion-pane.is-expanded')).count()).toEqual(1);
+  });
+});
+
+describe('Calendar overlapping events', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/calendar/test-overlaping-events');
+
+    const pane = await element.all(by.css('.calendar-event-spacer')).first();
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(pane), config.waitsFor);
+  });
+
+  it('Should span overlaping events', async () => {
+    await utils.checkForErrors();
+
+    expect(await element.all(by.css('[data-key="20200611"] .calendar-event-spacer')).count()).toEqual(1);
+    expect(await element.all(by.css('[data-key="20200613"] .calendar-event-spacer')).count()).toEqual(2);
+    expect(await element.all(by.css('[data-key="20200615"] .calendar-event-spacer')).count()).toEqual(2);
+    expect(await element.all(by.css('[data-key="20200617"] .calendar-event-spacer')).count()).toEqual(0);
+  });
+});
+
+describe('Calendar Color Overrides tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/calendar/test-event-color-override');
+    const dateField = await element(by.css('.calendar-monthview #monthview-datepicker-field'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(dateField), config.waitsFor);
+  });
+
+  it('Should override event colors correctly', async () => {
+    expect(await element.all(by.css('.calendar-event')).get(0).getAttribute('class')).toEqual('calendar-event event-day-start-end has-tooltip');
+    // expect(await element.all(by.css('.calendar-event')).get(0).getCssValue('background-color')).toEqual('rgba(173, 219, 235, 1)');
+    // expect(await element.all(by.css('.calendar-event')).get(0).getCssValue('border-left-color')).toEqual('rgba(128, 206, 77, 1)');
+
+    expect(await element.all(by.css('.calendar-event')).get(1).getAttribute('class')).toEqual('calendar-event event-day-start-end has-tooltip');
+    expect(await element.all(by.css('.calendar-event')).get(1).getCssValue('background-color')).toEqual('rgba(246, 202, 202, 1)');
+    expect(await element.all(by.css('.calendar-event')).get(1).getCssValue('border-left-color')).toEqual('rgba(232, 79, 79, 1)');
+  });
+
+  it('Should disable weekends', async () => {
+    expect(await element.all(by.css('.monthview-table td.is-disabled')).count()).toEqual(12);
+  });
+
+  it('Should render day legend', async () => {
+    expect(await element.all(by.css('.monthview-table td.is-colored')).count()).toEqual(4);
+    expect(await element.all(by.css('.monthview-legend')).count()).toEqual(1);
+    expect(await element.all(by.css('.monthview-legend-item')).get(0).getText()).toEqual('Public Holiday');
+    expect(await element.all(by.css('.monthview-legend-item')).get(1).getText()).toEqual('Other');
   });
 });

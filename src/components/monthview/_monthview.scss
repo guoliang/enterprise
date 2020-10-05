@@ -49,7 +49,7 @@
 
       .picklist-section.is-month::after {
         height: calc(100% - 80px);
-        left: 150px;
+        left: 50%;
       }
     }
 
@@ -77,8 +77,8 @@
   .btn-monthyear-pane {
     border-radius: 2px;
     color: $datepicker-month-year-color;
-    font-size: $theme-size-font-lg;
-    font-weight: $theme-number-font-weight-base;
+    font-size: $ids-size-font-lg;
+    font-weight: $ids-number-font-weight-base;
     margin-left: -5px;
     padding: 4px 0 5px;
 
@@ -90,7 +90,7 @@
     &.active {
       span,
       .icon {
-        color: $theme-color-brand-primary-base;
+        color: $ids-color-brand-primary-base;
       }
 
       .icon {
@@ -136,7 +136,7 @@
         border-left: 1px solid $popover-separator-color;
         content: ' ';
         height: calc(100% - 20px);
-        left: 165px;
+        left: 166px;
         position: absolute;
         top: 15px;
       }
@@ -160,7 +160,7 @@
           border-radius: 14px;
           box-shadow: none;
           color: $datepicker-day-color;
-          font-size: $theme-size-font-base;
+          font-size: $ids-size-font-base;
           padding: 1px 8px;
           text-decoration: none;
           user-select: none;
@@ -189,11 +189,11 @@
 
         &.is-selected a {
           background-color: $datepicker-selected-bg-color;
-          color: $theme-color-palette-white;
-          font-weight: $theme-number-font-weight-bold;
+          color: $ids-color-palette-white;
+          font-weight: $ids-number-font-weight-bold;
 
           .icon {
-            color: $theme-color-palette-white;
+            color: $ids-color-palette-white;
           }
         }
 
@@ -227,24 +227,26 @@
     height: 42px;
     width: 42px;
 
+    // Adjust cell size for IOS
     @media only screen
       and (max-width: $breakpoint-phone-to-tablet - 1)
       and (-webkit-min-device-pixel-ratio: 2)
       and (orientation: landscape) {
-      height: 32px;
-      width: 32px;
+      height: 36px;
+      width: 36px;
     }
 
     @media only screen
       and (max-width: $breakpoint-phone-to-tablet - 1)
       and (-webkit-min-device-pixel-ratio: 2)
       and (orientation: portrait) {
-      height: 32px;
-      width: 32px;
+      height: 36px;
+      width: 36px;
     }
 
     .day-text {
       @include rem(font-size, 1.4rem);
+      @include no-select();
 
       border-radius: 50%;
       color: $datepicker-day-color;
@@ -255,24 +257,6 @@
       margin: 2px;
       transition: 0.2s background-color ease;
       width: 36px;
-
-      @media only screen
-        and (max-width: $breakpoint-phone-to-tablet - 1)
-        and (-webkit-min-device-pixel-ratio: 2)
-        and (orientation: landscape) {
-        height: 32px;
-        line-height: 32px;
-        width: 32px;
-      }
-
-      @media only screen
-        and (max-width: $breakpoint-phone-to-tablet - 1)
-        and (-webkit-min-device-pixel-ratio: 2)
-        and (orientation: portrait) {
-        height: 32px;
-        line-height: 32px;
-        width: 32px;
-      }
     }
 
     &.is-selected.range {
@@ -354,7 +338,7 @@
         border-radius: 0 50% 50% 0;
 
         &::before {
-          background: radial-gradient(circle at 5px 50%, transparent 50%, $datepicker-hover-bg-color 50%);
+          background: radial-gradient(circle at -10px 50%, transparent 50%, $datepicker-hover-bg-color 50%);
           left: -100%;
         }
       }
@@ -367,8 +351,8 @@
           border-radius: 50%;
 
           &::before {
-            background: radial-gradient(circle at 35px 50%, transparent 50%, $datepicker-hover-bg-color 50%);
-            left: -50%;
+            background: radial-gradient(circle at 45px 50%, transparent 45%, $datepicker-hover-bg-color 50%);
+            left: -65%;
           }
         }
       }
@@ -440,7 +424,7 @@
         box-shadow: none;
 
         .day-text::after {
-          border: 1px solid $theme-color-palette-white;
+          border: 1px solid $ids-color-palette-white;
           border-radius: 50%;
           box-shadow: 0 0 3px 3px $focus-box-shadow-color;
           content: '';
@@ -492,7 +476,7 @@
     &.is-today:focus {
       .day-text {
         color: $datepicker-today-color;
-        font-weight: $theme-number-font-weight-bold;
+        font-weight: $ids-number-font-weight-bold;
       }
 
       &.is-selected,
@@ -538,7 +522,7 @@
       .day-text {
         background-color: $datepicker-selected-bg-color;
         color: $datepicker-selected-color;
-        font-weight: $theme-number-font-weight-bold;
+        font-weight: $ids-number-font-weight-bold;
       }
     }
 
@@ -722,8 +706,19 @@ html[dir='rtl'] {
           border-radius: 0 50% 50% 0;
 
           &::before {
-            background: radial-gradient(circle at 5px 50%, transparent 50%, $datepicker-hover-bg-color 50%);
+            background: radial-gradient(circle at -10px 50%, transparent 50%, $datepicker-hover-bg-color 50%);
             left: -100%;
+          }
+        }
+
+        &:active {
+          .day-text {
+            border-radius: 50%;
+
+            &::before {
+              background: radial-gradient(circle at 43px 50%, transparent 50%, #d8d8d8 50%);
+              left: -60%;
+            }
           }
         }
 
@@ -788,7 +783,7 @@ html[dir='rtl'] {
           border-radius: 0 50% 50% 0;
 
           &::before {
-            background: radial-gradient(circle at 5px 50%, transparent 50%, $datepicker-selected-bg-color 50%);
+            background: radial-gradient(circle at -10px 50%, transparent 50%, $datepicker-selected-bg-color 50%);
             left: -100%;
           }
         }
@@ -802,6 +797,17 @@ html[dir='rtl'] {
             &::before {
               background: none;
             }
+          }
+        }
+      }
+
+      &.is-disabled:not(.include-disabled),
+      &.is-disabled:not(.include-disabled):active {
+        .day-text {
+          border-radius: 50%;
+
+          &::before {
+            background: none !important;
           }
         }
       }

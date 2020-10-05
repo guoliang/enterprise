@@ -34,7 +34,7 @@ describe('Autocomplete example-index tests', () => {
         .wait(protractor.ExpectedConditions.presenceOf(autocompleteListContainer), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(autocompleteListContainer, 'autocomplete-open')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(autocompleteListContainer, 'autocomplete-open')).toEqual(0);
     });
   }
 
@@ -151,5 +151,27 @@ describe('Autocomplete keyword tests', () => {
     await browser.driver.wait(protractor.ExpectedConditions.presenceOf(await element(by.id('autocomplete-list'))), config.waitsFor);
 
     expect(await element.all(by.css('#autocomplete-list li')).count()).toEqual(7);
+  });
+});
+
+describe('Autocomplete focus tests', () => {
+  beforeEach(async () => {
+    await browser.waitForAngularEnabled(false);
+    await browser.driver.get(`${browser.baseUrl}/components/autocomplete/example-ajax`);
+  });
+
+  it('Should not steal focus away from other components if the user has tabbed out', async () => {
+    await clickOnAutocomplete();
+
+    // Type "Utah" and immediately tab to the next field
+    await browser.actions()
+      .sendKeys('utah')
+      .sendKeys(protractor.Key.TAB).perform();
+
+    // Wait for the amount of time necessary that would normally be needed for the list to open.
+    await browser.driver.sleep(config.sleepLonger);
+
+    // Make sure the list isn't there
+    expect(await element(by.id('autocomplete-list')).isPresent()).toBeFalsy();
   });
 });

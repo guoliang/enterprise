@@ -196,13 +196,15 @@ Validator.prototype = {
         const thisField = $(this);
         const handleEventData = thisField.data(`handleEvent${[(e.type || '')]}`);
 
-        if (thisField.is('[readonly]') && !thisField.parent().is('.field-fileupload')) {
+        if (thisField.is('[readonly]') && !thisField.parent().is('.field-fileupload') &&
+          !thisField.is('.lookup.is-not-editable')) {
           return;
         }
 
         if (handleEventData &&
             handleEventData.type === e.type &&
             e.handleObj.namespace === 'validate' &&
+            !thisField.is('.lookup') &&
             !thisField.closest('.modal:visible').length) {
           return;
         }
@@ -496,6 +498,11 @@ Validator.prototype = {
       if (!($(`.icon-${type}`, iconContainer).length)) {
         iconContainer.addClass(`is-${type}`).append(errorIcon);
       }
+
+      const tabsAPI = parentContainer.data('tabs');
+      if (tabsAPI) {
+        tabsAPI.sizeBar();
+      }
     } else {
       // Remove icon
       iconContainer = iconContainer.add(menuitem);
@@ -678,9 +685,8 @@ Validator.prototype = {
     }
 
     if (dataMsg &&
-      dataMsg.filter(rules =>
-        (rules.id || rules.message) === (rule.id || rule.message)
-        && rules.message === rule.message).length > 0) {
+      dataMsg.filter(rules => (rules.id || rules.message) === (rule.id || rule.message) &&
+        rules.message === rule.message).length > 0) {
       // No need to add new message
       return;
     }
@@ -906,8 +912,13 @@ Validator.prototype = {
     rule.icon = rule.icon || validationType.icon;
 
     let markup;
-    const icon = theme.currentTheme.id && theme.currentTheme.id.indexOf('uplift') > -1 ?
-      `${validationType.type}-alert` : `${validationType.type}`;
+    let icon;
+
+    if (rule.type === 'error') {
+      icon = `${validationType.type}-alert`;
+    } else {
+      icon = theme.currentTheme.id && theme.currentTheme.id.indexOf('uplift') > -1 ? `${validationType.type}-alert` : `${validationType.type}`;
+    }
 
     if (rule.type === 'icon') {
       markup = '' +

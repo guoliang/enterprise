@@ -3,49 +3,44 @@
  * NOTE: Remember that this cascades on top of the rules from the project root folder.
  */
 module.exports = {
-  'parser': 'babel-eslint',
+  parser: 'babel-eslint',
 
-  'plugins': [
+  plugins: [
     'compat',
     'babel'
   ],
 
-  'env': {
-    'browser': true,
-    'jquery': true
+  env: {
+    browser: true,
+    jquery: true
   },
 
-  'globals': {
-    'd3': true,
-    'document': true,
-    'window': true
+  globals: {
+    d3: true,
+    document: true,
+    window: true
   },
 
-  'rules': {
+  rules: {
     // Browser compatibility
-    'compat/compat': 'error',
+    'compat/compat': 'warn',
 
     // ensure JSDoc comments are valid
     // https://eslint.org/docs/rules/valid-jsdoc
     'valid-jsdoc': ['warn', {
-      'prefer': {
-        'arg': 'param',
-        'argument': 'param',
-        'class': 'class',
-        'return': 'returns'
+      prefer: {
+        arg: 'param',
+        argument: 'param',
+        class: 'class',
+        return: 'returns'
       },
-      'requireReturn': false
+      requireReturn: false
     }],
 
     // Don't enforce disallowing of mixed operators.
     // We use lots of algebra for positioning/etc that gets flagged by this.
     // https://eslint.org/docs/rules/no-mixed-operators
     'no-mixed-operators': ['off'],
-
-    // Don't allow paramter reassignment
-    'no-param-reassign': ['off', {
-      props: true,
-    }],
 
     // Ignore certain globals:
     // - IsNaN - due to our previous assumptions in code about how it sometimes will return 'false', and because `Number.isNaN` has no native IE11 support.

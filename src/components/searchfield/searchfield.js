@@ -426,7 +426,7 @@ SearchField.prototype = {
           </button>
         `);
       }
-      this.goButton.attr('id', utils.uniqueId(this.goButton, 'searchfield-go-button-'));
+      this.goButton[0].setAttribute('id', utils.uniqueId(this.goButton, 'searchfield-go-button-'));
       this.wrapper.addClass('has-go-button');
       this.element.after(this.goButton);
     } else {
@@ -434,9 +434,7 @@ SearchField.prototype = {
     }
 
     if (this.settings.clearable) {
-      this.element.clearable();
-      this.wrapper.addClass('has-close-icon-button');
-      this.xButton = this.wrapper.children('.icon.close');
+      this.makeClearable();
     }
 
     // Stagger a calculation for setting the size of the Searchfield element, if applicable
@@ -2070,6 +2068,31 @@ SearchField.prototype = {
     }
 
     return this;
+  },
+
+  /**
+   * Make the search field have an x button.
+   * @public
+   * @returns {void} adds 'x' button to clear the searchfield.
+   */
+  makeClearable() {
+    this.element.clearable();
+    this.wrapper.addClass('has-close-icon-button');
+    this.xButton = this.wrapper.children('.icon.close');
+
+    // Ignoring the close button from tabbing
+    this.xButton[0].setAttribute('tabindex', '-1');
+  },
+
+  /**
+   * Clear the search field.
+   * @public
+   * @returns {void} adds 'x' button to clear the searchfield.
+   */
+  clear() {
+    if (this.xButton) {
+      this.xButton.click();
+    }
   },
 
   /**

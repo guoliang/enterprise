@@ -12,11 +12,11 @@ const COMPONENT_NAME = 'spinbox';
 
 // Component Defaults
 const SPINBOX_DEFAULTS = {
-  autocorrectOnBlur: false,
+  autocorrectOnBlur: true,
   min: -2147483647,
   max: 2147483647,
   step: null,
-  validateOnInput: true
+  maskOptions: null
 };
 
 /**
@@ -25,12 +25,12 @@ const SPINBOX_DEFAULTS = {
  * @constructor
  * @param {jQuery[]|HTMLElement} element the base element
  * @param {object} [settings] incoming settings
- * @param {boolean} [settings.autocorrectOnBlur = false] If true the input will adjust to the nearest step on blur.
+ * @param {boolean} [settings.autocorrectOnBlur = true] If true the input will adjust to the nearest step on blur.
  * @param {Number} [settings.min = -2147483647] if defined, provides a minimum numeric limit
  * @param {Number} [settings.max = 2147483647]  if defined, provides a maximum numeric limit
+ * @param {Number} [settings.maskOptions = null]  if defined this is passed to the internal mask component
  * @param {null|Number} [settings.step = null]  if defined, increases or decreases the spinbox value
  *  by a specific interval whenever the control buttons are used.
- * @param {boolean} [settings.validateOnInput = true]  If set to false, will only automatically correct
  *  the spinbox value after the spinbox has lost focus.
  */
 function Spinbox(element, settings) {
@@ -72,6 +72,10 @@ Spinbox.prototype = {
   init() {
     this.inlineLabel = this.element.closest('label');
     this.inlineLabelText = this.inlineLabel.find('.label-text');
+
+    if (this.element.is(':disabled')) {
+      this.element.closest('.field').addClass('is-disabled');
+    }
 
     this
       .setInitialValue()
@@ -130,7 +134,7 @@ Spinbox.prototype = {
     }
 
     if (this.element.attr('min')) {
-      this.settings.max = this.element.attr('min');
+      this.settings.min = this.element.attr('min');
     } else if (this.settings.min) {
       this.element.attr('min', this.settings.min);
     }
@@ -197,65 +201,20 @@ Spinbox.prototype = {
     // use them.
     const min = this.element.attr('min');
     let max = this.element.attr('max');
-    let mask = this.element.attr('data-mask');
-    let maskValue = '';
     const attributes = {
       role: 'spinbutton'
     };
-    let i = 0;
 
     // Define a default Max value if none of these attributes exist, to ensure the mask plugin will
     // work correctly.  Cannot define a Min value here because the plugin must be able to invoke
     // itself with a NULL value.
-    if (!min && !max && !mask) {
+    if (!min && !max) {
       max = '9999999';
     }
 
-    // If a mask doesn't exist, but min and max values do exist, create a mask that reflects
-    // those min/max values
-    if ((min || max) && !mask) {
-      let newMask = '';
-      const tempMin = min || '';
-      const tempMax = max || '';
-      const longerVal = tempMin.length > tempMax.length ? tempMin : tempMax;
-      i = 0;
-
-      while (i <= longerVal.length) {
-        newMask += '#';
-        i++;
-      }
-
-      // Add a negative symbol to the mask if it exists within the longer value.
-      if (tempMin.indexOf('-') !== -1 || tempMax.indexOf('-') !== -1) {
-        newMask = `-${newMask.substring(0, (newMask.length - 1))}`;
-      }
-
-      attributes['data-mask'] = newMask;
-      mask = newMask;
-    }
-
-    // If a "data-mask" attribute is already defined, use it to determine missing values
-    // for min/max, if they don't already exist.
-    const maskSize = mask.length;
-
-    i = 0;
-    while (i <= maskSize) {
-      maskValue += '9';
-      i++;
-    }
-
     // If no negative symbol exists in the mask, the minimum value must be zero.
-    if (mask.indexOf('-') === -1) {
-      attributes.min = min || 0;
-      attributes.max = max || maskValue;
-    } else {
-      attributes.min = min || maskValue;
-      attributes.max = max || maskValue.substring(0, (maskValue.length - 1));
-    }
-
-    if (!this.element.attr('data-mask-mode') || this.element.attr('data-mask-mode') !== 'number') {
-      attributes['data-mask-mode'] = 'number';
-    }
+    attributes.min = min || 0;
+    attributes.max = max;
 
     // Destroy the Mask Plugin if it's already been invoked.  We will reinvoke it later
     // on during initialization.  Check to make sure its the actual Mask plugin object,
@@ -273,7 +232,18 @@ Spinbox.prototype = {
     this.updateAria(self.element.val());
 
     // Invoke the mask plugin
-    this.element.mask();
+    const maskOptions = {
+      process: 'number',
+      patternOptions: {
+        allowDecimal: false,
+        allowThousandsSeparator: false,
+        allowNegative: Math.min(this.settings.min, this.settings.max) < 0,
+        decimalLimit: 0,
+        integerLimit: String(this.settings.max).length
+      }
+    };
+
+    this.element.mask(this.settings.maskOptions || maskOptions);
 
     // Disable in full if the settings have determined we need to disable on init.
     if (this.isDisabled()) {
@@ -378,45 +348,6 @@ Spinbox.prototype = {
   },
 
   /**
-   * Event handler for 'keypress' events
-   * TODO: Deprecate in 4.4.0
-   * @private
-   * @param {jQuery.Event} e jQuery `keypress` event
-   * @param {Spinbox} self component instance
-   * @returns {void}
-   */
-  handleKeyPress(e, self) {
-    const key = e.which;
-
-    // NOTE:
-    if (key < 48 || (key > 57 && key < 96) || key > 105) {
-      return undefined;
-    }
-
-    return this.handleInput(e, self);
-  },
-
-  /**
-   * Event handler for the 'input' event
-   * @private
-   * @param {jQuery.Event} e jQuery `input` event
-   * @param {Spinbox} self this component instance
-   * @returns {void}
-   */
-  handleInput(e, self) {
-    if (self.isDisabled() || this.isReadonly()) {
-      return undefined;
-    }
-
-    // If we're only auto-correcting on blur, don't continue.
-    if (this.settings.autocorrectOnBlur) {
-      return undefined;
-    }
-
-    return this.correctValue(e);
-  },
-
-  /**
    * Event handler for 'keyup' events
    * @private
    * @param {jQuery.Event} e jQuery `input` event
@@ -484,8 +415,8 @@ Spinbox.prototype = {
    */
   correctValue(e) {
     const num = Number(this.element.val());
-    const min = this.element.attr('min');
-    const max = this.element.attr('max');
+    const min = parseInt(this.element.attr('min'), 10);
+    const max = parseInt(this.element.attr('max'), 10);
 
     if (num < min) {
       if (e) {
@@ -631,7 +562,12 @@ Spinbox.prototype = {
    */
   disable() {
     this.element.prop('disabled', true);
+    this.element.attr('disabled', 'disabled');
     this.element.parent('.spinbox-wrapper').addClass('is-disabled');
+
+    setTimeout(() => {
+      this.element.parent('.spinbox-wrapper').addClass('is-disabled');
+    });
   },
 
   /**
@@ -768,12 +704,9 @@ Spinbox.prototype = {
       }
     }).on('keydown.spinbox', (e) => {
       self.handleKeyDown(e, self);
-    }).on('input.spinbox', (e) => {
-      self.handleInput(e, self);
+    }).on('keyup.spinbox', (e) => {
+      self.handleKeyup(e, self);
     })
-      .on('keyup.spinbox', (e) => {
-        self.handleKeyup(e, self);
-      })
       .on('afterpaste.mask', () => {
         self.handleAfterPaste(self);
       });

@@ -14,6 +14,13 @@ import { xssUtils } from '../../utils/xss';
 import { DOM } from '../../utils/dom';
 import { theme } from '../theme/theme';
 
+// jQuery Components
+import '../colorpicker/colorpicker.jquery';
+import '../fontpicker/fontpicker.jquery';
+import '../toolbar/toolbar.jquery';
+import '../toolbar-flex/toolbar-flex.jquery';
+import '../tooltip/tooltip.jquery';
+
 const COMPONENT_NAME = 'editor';
 
 const EDITOR_PARENT_ELEMENTS = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code'];
@@ -98,7 +105,7 @@ const EDITOR_DEFAULTS = {
   showHtmlView: false,
   preview: false,
   paragraphSeparator: 'p',
-  useFlexToolbar: false,
+  useFlexToolbar: true,
   useSourceFormatter: false,
   formatterTabsize: 4,
   fontpickerSettings: {
@@ -113,6 +120,9 @@ const EDITOR_DEFAULTS = {
 
 function Editor(element, settings) {
   this.settings = utils.mergeSettings(element, settings, EDITOR_DEFAULTS);
+  if (settings?.buttons) {
+    this.settings.buttons = settings.buttons;
+  }
 
   this.element = $(element);
   debug.logTimeStart(COMPONENT_NAME);
@@ -437,7 +447,7 @@ Editor.prototype = {
       }
     }
 
-    const toolbar = `<div class="${toolbarCssClasses}" id="editor-toolbar-${this.id}">
+    const toolbar = `<div class="${toolbarCssClasses}" data-init="false" id="editor-toolbar-${this.id}">
       <div class="${sectionCss}buttonset">
         ${buttonsHTML}
       </div>
@@ -516,7 +526,7 @@ Editor.prototype = {
       this.textarea.text(xssUtils.sanitizeHTML(this.element.html().toString()));
       this.resetEmptyEditor(e);
       this.element.trigger('change');
-    }, 300));
+    }, 400));
 
     $('html').on(`themechanged.${COMPONENT_NAME}`, () => {
       this.setRowsHeight();
@@ -567,7 +577,18 @@ Editor.prototype = {
     html = this.element.html().toString().trim();
     this.textarea.html(xssUtils.sanitizeHTML(html));
 
-    this.restoreSelection(this.savedSelection);
+    const newSelection = this.saveSelection();
+    const isNumber = n => typeof n === 'number';
+    const isPresent = obj => obj && obj[0] &&
+      isNumber(obj[0].startOffset) && isNumber(obj[0].endOffset);
+    const getOffset = obj => (isPresent(obj) ?
+      { start: obj[0].startOffset, end: obj[0].endOffset } : null);
+    const offset = { old: getOffset(this.savedSelection), new: getOffset(newSelection) };
+
+    if (!((offset.old !== null && offset.new !== null) &&
+        (offset.old.start === offset.new.start) && (offset.old.end === offset.new.end))) {
+      this.restoreSelection(this.savedSelection);
+    }
   },
 
   /**
@@ -902,7 +923,7 @@ Editor.prototype = {
 
       strikethrough: `<button type="button" class="btn btn-editor" title="${Locale.translate('StrikeThrough')}" data-action="strikethrough" data-element="strike">${buttonLabels.strikethrough}</button>`,
 
-      foreColor: `<button type="button" class="btn btn-editor colorpicker-editor-button" title="${Locale.translate('TextColor')}" data-action="foreColor" data-element="foreColor">${buttonLabels.foreColor}</button>`,
+      foreColor: `<button type="button" class="btn btn-editor colorpicker-editor-button" title="${Locale.translate('TextColor')}" data-action="foreColor" data-element="foreColor" data-init="false">${buttonLabels.foreColor}</button>`,
 
       backColor: `<button type="button" class="btn btn-editor colorpicker-editor-button" title="${Locale.translate('BackgroundColor')}" data-action="backColor" data-element="backColor">${buttonLabels.backColor}</button>`,
 
@@ -926,7 +947,7 @@ Editor.prototype = {
 
       unorderedlist: `<button type="button" class="btn btn-editor" title="${Locale.translate('UnorderedList')}" data-action="insertunorderedlist" data-element="ul">${buttonLabels.unorderedlist}</button>`,
 
-      fontPicker: `<button type="button" class="btn btn-editor fontpicker" data-action="fontStyle"><span>${'FontPicker'}</span></button>`,
+      fontPicker: `<button type="button" class="btn btn-editor fontpicker" data-action="fontStyle" data-init="false"><span>${'FontPicker'}</span></button>`,
 
       justifyLeft: `<button type="button" class="btn btn-editor" title="${Locale.translate('JustifyLeft')}" data-action="justifyLeft" >${buttonLabels.justifyLeft}</button>`,
 
@@ -1221,10 +1242,10 @@ Editor.prototype = {
   },
 
   updateCurrentLink(alink) {
-    const emUrl = xssUtils.stripTags($(`[name="em-url-${this.id}"]`).val());
-    const emClass = xssUtils.stripTags($(`[name="em-class-${this.id}"]`).val());
-    const emTarget = xssUtils.stripTags($(`[name="em-target-${this.id}"]`).val());
-    const emIsClickable = this.settings.anchor.showIsClickable ? $(`[name="em-isclickable-${this.id}"]`).is(':checked') : this.settings.anchor.isClickable;
+    const emUrl = xssUtils.stripTags(document.querySelector(`[name="em-url-${this.id}"]`).value);
+    const emClass = xssUtils.stripTags(document.querySelector(`[name="em-class-${this.id}"]`).value);
+    const emTarget = xssUtils.stripTags(document.querySelector(`[name="em-target-${this.id}"]`).value);
+    const emIsClickable = this.settings.anchor.showIsClickable ? document.querySelector(`[name="em-isclickable-${this.id}"]`).checked : this.settings.anchor.isClickable;
 
     if (alink) {
       alink[0].setAttribute('href', this.fixLinkFormat((emUrl && $.trim(emUrl).length ? emUrl : this.settings.anchor.defaultUrl)));
@@ -1892,7 +1913,7 @@ Editor.prototype = {
     s = s.replace(/<head\b[^>]*>(.*?)<\/head>/gi, '');
 
     // Remove empty tags
-    s = s.replace(/<[^/>]+>[\s]*<\/[^>]+>/gi, '');
+    s = s.replace(/<[^(br|/>)]+>[\s]*<\/[^>]+>/gi, '');
 
     if (s.indexOf('·') > -1) {
       // Replace span and paragraph tags from bulleted list pasting
@@ -2155,8 +2176,8 @@ Editor.prototype = {
       this.textarea.off('input.editor-firechange');
 
       setTimeout(() => {
-        this.element.html(content);
-        content = this.element.html();
+        this.element[0].innerHTML = content;
+        content = this.element[0].innerHTML;
         /**
          * Fires after preview mode activated.
          * @event afterpreviewmode

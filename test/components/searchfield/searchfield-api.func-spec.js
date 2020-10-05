@@ -60,6 +60,30 @@ describe('Searchfield API', () => {
     expect(wrapper.classList.contains('is-disabled')).toBeFalsy();
   });
 
+  it('can clear the searchfield via clear API', () => {
+    searchfieldInputEl.value = 'Alaska';
+    const spyEvent = spyOnEvent(searchfieldInputEl, 'cleared');
+    searchfieldAPI.makeClearable();
+    searchfieldAPI.clear();
+
+    expect(spyEvent).toHaveBeenTriggered();
+    expect(searchfieldInputEl.getAttribute('value')).toEqual(null);
+  });
+
+  it('can clear the searchfield via click', () => {
+    searchfieldInputEl.value = 'Alaska';
+    searchfieldAPI.makeClearable();
+
+    const closeButtonEl = document.body.querySelector('.searchfield-wrapper svg.close');
+    const spyEvent = spyOnEvent(closeButtonEl, 'click');
+    const spyEvent2 = spyOnEvent(searchfieldInputEl, 'cleared');
+    $(closeButtonEl).click();
+
+    expect(spyEvent).toHaveBeenTriggered();
+    expect(spyEvent2).toHaveBeenTriggered();
+    expect(searchfieldInputEl.getAttribute('value')).toEqual(null);
+  });
+
   it('can add an extra "More Results" link to the results list', () => {
     let wasCalled = false;
     function allResultsCallback() {

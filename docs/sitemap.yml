@@ -11,8 +11,16 @@ sections:
     slug: typography
 - name: Layouts
   pages:
+  - name: Block Grid
+    slug: blockgrid
   - name: Grid
     slug: grid
+  - name: Forms
+    slug: form
+  - name: Page Layouts
+    slug: page-layouts
+  - name: Page Patterns
+    slug: page-patterns
 - name: Components
   pages:
   - name: Accordion
@@ -37,6 +45,8 @@ sections:
     slug: circlepager
   - name: Color Picker
     slug: colorpicker
+  - name: Context Menu
+    slug: contextmenu
   - name: Counts
     slug: counts
   - name: Data Grid
@@ -47,36 +57,62 @@ sections:
     slug: dropdown
   - name: Editor (RichText)
     slug: editor
+  - name: Empty Messages
+    slug: emptymessage
+  - name: Expandable Area
+    slug: expandablearea
+  - name: Error Page
+    slug: error-page
   - name: Favorites
     slug: favorites
   - name: Field Filter
     slug: field-filter
+  - name: Fieldset
+    slug: fieldset
   - name: File Upload
     slug: fileupload
   - name: File Upload (Advanced)
     slug: fileupload-advanced
   - name: Header
     slug: header
+  - name: Homepage
+    slug: homepage
+  - name: Hierarchy (Org Chart)
+    slug: hierarchy
   - name: Hyperlinks
     slug: hyperlinks
   - name: Input (Text)
     slug: input
+  - name: Images
+    slug: images
+  - name: Lookup
+    slug: lookup
   - name: List
     slug: listview
   - name: List Builder
     slug: listbuilder
+  - name: Masthead
+    slug: masthead
   - name: Menubutton
     slug: menubutton
+  - name: Message
+    slug: message
   - name: Modal
     slug: modal
+  - name: Month View
+    slug: monthview
   - name: Multiselect
     slug: multiselect
+  - name: Notification Banner
+    slug: notification
   - name: Pager
     slug: pager
   - name: Popover
     slug: popover
   - name: Popupmenu
     slug: popupmenu
+  - name: Process Indicator
+    slug: processindicator
   - name: Progress Indicator
     slug: progress
   - name: Radios
@@ -101,10 +137,14 @@ sections:
     slug: tabs-header
   - name: Tabs (Module)
     slug: tabs-module
+  - name: Tabs-multi
+    slug: tabs-multi
   - name: Tabs (Vertical)
     slug: tabs-vertical
   - name: Tag
     slug: tag
+  - name: Textarea
+    slug: textarea
   - name: Text Input
     slug: input
   - name: Timeline
@@ -115,20 +155,28 @@ sections:
     slug: toast
   - name: Toolbar
     slug: toolbar
+  - name: Toolbar Flex
+    slug: toolbar-flex
   - name: Toolbar Searchfield
     slug: toolbarsearchfield
   - name: Tooltip
     slug: tooltip
+  - name: Tree
+    slug: tree
+  - name: Week / Day View
+    slug: week-view
+  - name: Wizard
+    slug: wizard
 - name: Utilities
   pages:
   - name: Arrange
     slug: arrange
   - name: Drag
     slug: drag
-  - name: Initialize
-    slug: initialize
   - name: Locale
     slug: locale
+  - name: List Filter
+    slug: listfilter
   - name: Mask
     slug: mask
   - name: Personalize
@@ -143,8 +191,6 @@ sections:
     slug: visibility
   - name: Validation
     slug: validation
-  - name: Zoom
-    slug: zoom
 - name: Patterns
   pages:
     - name: About
@@ -171,6 +217,8 @@ sections:
     slug: bubble
   - name: Bullet
     slug: bullet
+  - name: Calendar
+    slug: calendar
   - name: Column Chart
     slug: column
   - name: Column Chart (Grouped)
@@ -197,47 +245,3 @@ sections:
     slug: treemap
   - name: Completion Chart
     slug: completion-chart
-- name: Unclassified
-  pages:
-  - name: Block Grid
-    slug: blockgrid
-  - name: Context Menu
-    slug: contextmenu
-  - name: Composite Form
-    slug: compositeform
-  - name: Empty Messages
-    slug: emptymessage
-  - name: Expandable Area
-    slug: expandablearea
-  - name: Fieldset
-    slug: fieldset
-  - name: Field Options
-    slug: field-options
-  - name: Form Functionality
-    slug: form
-  - name: Hierarchy (Org Chart)
-    slug: hierarchy
-  - name: Homepage
-    slug: homepage
-  - name: Images
-    slug: images
-  - name: List Filter
-    slug: listfilter
-  - name: Lookup
-    slug: lookup
-  - name: Masthead
-    slug: masthead
-  - name: Message
-    slug: message
-  - name: Notification Banner
-    slug: notification
-  - name: Process Indicator
-    slug: processindicator
-  - name: Tabs-multi
-    slug: tabs-multi
-  - name: Textarea
-    slug: textarea
-  - name: Tree
-    slug: tree
-  - name: Wizard
-    slug: wizard

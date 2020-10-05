@@ -2,10 +2,12 @@ import * as debug from '../../utils/debug';
 import { deprecateMethod } from '../../utils/deprecated';
 import { utils } from '../../utils/utils';
 import { dateUtils } from '../../utils/date';
+import { stringUtils } from '../../utils/string';
 import { Locale } from '../locale/locale';
 import { MonthView } from '../monthview/monthview';
 
 // jQuery Components
+import '../expandablearea/expandablearea.jquery';
 import '../mask/mask-input.jquery';
 import '../popover/popover.jquery';
 import '../timepicker/timepicker.jquery';
@@ -38,8 +40,11 @@ const COMPONENT_NAME = 'datepicker';
  * @param {object} [settings.disable] Disable dates in various ways.
  * For example `{minDate: 'M/d/yyyy', maxDate: 'M/d/yyyy'}`. Dates should be in format M/d/yyyy
  * or be a Date() object or string that can be converted to a date with new Date().
+ * @param {function} [settings.disable.callback] return true to disable passed dates.
  * @param {array} [settings.disable.dates] Disable specific dates.
- * Example `{dates: ['12/31/2018', '01/01/2019'}`.
+ * Example `{dates: ['12/31/2018', '01/01/2019']}`.
+ * @param {array} [settings.disable.years] Disable specific years.
+ * Example `{years: [2018, 2019]}`.
  * @param {string|date} [settings.disable.minDate] Disable up to a minimum date.
  * Example `{minDate: '12/31/2016'}`.
  * @param {string|date} [settings.disable.maxDate] Disable up to a maximum date.
@@ -94,7 +99,9 @@ const DATEPICKER_DEFAULTS = {
   placeholder: false,
   firstDayOfWeek: 0,
   disable: {
+    callback: null,
     dates: [],
+    years: [],
     minDate: '',
     maxDate: '',
     dayOfWeek: [],
@@ -262,7 +269,6 @@ DatePicker.prototype = {
     );
     this.isIslamic = this.currentCalendar.name === 'islamic-umalqura';
     this.isRTL = (this.locale.direction || this.locale.data.direction) === 'right-to-left';
-    this.conversions = this.currentCalendar.conversions;
     this.isFullMonth = this.settings.dateFormat.indexOf('MMMM') > -1;
     this.setFormat();
     this.mask();
@@ -346,6 +352,7 @@ DatePicker.prototype = {
     elem.off('keydown.datepicker').on('keydown.datepicker', (e) => {
       let handled = false;
       const key = e.keyCode || e.charCode || 0;
+      const hasMinusPattern = this.settings?.dateFormat?.indexOf('-') > -1;
 
       // Arrow Down or Alt first opens the dialog
       if (key === 40 && !this.isOpen()) {
@@ -361,6 +368,18 @@ DatePicker.prototype = {
       if (key === 84) {
         handled = true;
         this.setToday();
+      }
+
+      // '-' decrements day
+      if (key === 189 && !e.shiftKey && (!hasMinusPattern)) {
+        handled = true;
+        this.adjustDay(false);
+      }
+
+      // '+' increments day
+      if (key === 187 && e.shiftKey && (!hasMinusPattern)) {
+        handled = true;
+        this.adjustDay(true);
       }
 
       if (handled) {
@@ -527,7 +546,6 @@ DatePicker.prototype = {
     const self = this;
     const s = this.settings;
     const timeOptions = {};
-    this.lastValue = typeof this.currentDate === 'string' ? this.currentDate : this.currentDate?.getTime();
 
     if ((this.element.is(':disabled') || this.element.attr('readonly')) && this.element.closest('.monthview').length === 0) {
       return;
@@ -624,6 +642,7 @@ DatePicker.prototype = {
       });
 
       this.timepicker = this.timepickerContainer.timepicker(timeOptions).data('timepicker');
+      this.setUseCurrentTime();
       this.timepickerContainer.find('.dropdown').dropdown();
 
       this.timepickerContainer.on('change.datepicker', () => {
@@ -651,8 +670,9 @@ DatePicker.prototype = {
       this.todayDay = this.todayDateIslamic[2];
     }
 
-    this.settings.month = this.currentMonth;
     this.settings.year = this.currentYear;
+    this.settings.month = this.currentMonth;
+
     if (this.isIslamic) {
       this.settings.activeDateIslamic = this.activeDate instanceof Date ?
         Locale.gregorianToUmalqura(this.activeDate) : this.activeDate;
@@ -661,15 +681,17 @@ DatePicker.prototype = {
     if (this.settings.onOpenCalendar) {
       // In some cases, month picker wants to set a specifc time.
       this.settings.activeDate = this.settings.onOpenCalendar();
-      this.settings.month = this.settings.activeDate.getMonth();
-      this.settings.year = this.settings.activeDate.getFullYear();
-
       if (this.isIslamic) {
         this.settings.activeDateIslamic = Locale.gregorianToUmalqura(this.settings.activeDate);
+        this.settings.year = this.settings.activeDateIslamic[0];
+        this.settings.month = this.settings.activeDateIslamic[1];
+      } else {
+        this.settings.year = this.settings.activeDate.getFullYear();
+        this.settings.month = this.settings.activeDate.getMonth();
       }
     } else {
       this.settings.activeDate = this.currentDate || this.todayDate;
-      this.settings.activeDateIslamic = this.currentIslamicDate || this.todayDateIslamic;
+      this.settings.activeDateIslamic = this.currentDateIslamic || this.todayDateIslamic;
     }
 
     this.settings.isPopup = true;
@@ -723,10 +745,6 @@ DatePicker.prototype = {
       };
     }
 
-    if (!this.settings.language) {
-      this.settings.language = this.language;
-    }
-
     this.calendarAPI = new MonthView(this.calendarContainer, this.settings);
     this.calendar = this.calendarAPI.element;
 
@@ -772,11 +790,12 @@ DatePicker.prototype = {
       .off('show.datepicker')
       .on('show.datepicker', () => {
         // Horizontal view on mobile
-        if (window.innerHeight < 400 && this.popupClosestScrollable) {
+        if (window.innerHeight < 400 && this.popupClosestScrollable &&
+          this.popupClosestScrollable.length === 1) {
           this.popup.find('.arrow').hide();
           this.popup.css({
-            'min-height': $('html').hasClass('theme-uplift-light') ? ''
-              : `${(this.popupClosestScrollable[0].scrollHeight - 521)}px`,
+            'min-height': $('html').hasClass('theme-uplift-light') ? '' :
+              `${(this.popupClosestScrollable[0].scrollHeight - 521)}px`,
             height: ''
           });
           this.popupClosestScrollable.css('min-height', '375px');
@@ -825,7 +844,7 @@ DatePicker.prototype = {
     this.popup.attr('role', 'dialog');
     this.originalDate = this.element.val();
     this.calendarAPI.currentDate = this.currentDate;
-    this.calendarAPI.currentIslamicDate = this.currentIslamicDate;
+    this.calendarAPI.currentDateIslamic = this.currentDateIslamic;
     this.calendarAPI.validatePrevNext();
 
     // Calendar Day Events
@@ -850,6 +869,7 @@ DatePicker.prototype = {
 
         const cell = $(this);
         cell.addClass(`is-selected${(s.range.useRange ? ' range' : '')}`).attr('aria-selected', 'true');
+        self.lastValue = null;
         self.insertSelectedDate(cell);
 
         if (s.range.useRange) {
@@ -879,6 +899,7 @@ DatePicker.prototype = {
           self.clearRangeDates();
         }
         self.closeCalendar();
+        self.element.focus();
       }
 
       if (btn.hasClass('is-cancel-month-pane')) {
@@ -929,12 +950,16 @@ DatePicker.prototype = {
           self.insertSelectedDate();
           self.closeCalendar();
         }
+
+        if (!btn.hasClass('is-select-month-pane')) {
+          self.element.focus();
+        }
       }
-      self.element.focus();
       e.preventDefault();
 
       if (btn.hasClass('is-select-month-pane')) {
         self.calendarAPI.monthYearPane.data('expandablearea').close();
+        self.popup.find('.btn-primary.is-select').focus();
       }
     });
 
@@ -955,6 +980,36 @@ DatePicker.prototype = {
       self.calendarAPI.validatePrevNext();
       self.setFocusAfterOpen();
     }, 50);
+  },
+
+  /**
+   * Set time picker options for `useCurrentTime` setting.
+   * @private
+   * @returns {void}
+   */
+  setUseCurrentTime() {
+    if (this.settings.useCurrentTime && this.timepicker.minuteSelect.length) {
+      const isSeconds = this.isSeconds && this.timepicker.secondSelect.length;
+      const leadingZero = n => (n < 10 ? '0' : '') + n;
+      const setOption = (elem, value) => {
+        if (!elem.find(`option:contains(${value})`).length) {
+          elem.find('option:selected').prop('selected', false);
+          elem.prepend($(`<option selected >${value}</option>`));
+        }
+      };
+      const d = new Date();
+      setOption(this.timepicker.minuteSelect, leadingZero(d.getMinutes()));
+      if (isSeconds) {
+        setOption(this.timepicker.secondSelect, leadingZero(d.getSeconds()));
+      }
+      if (typeof this.time === 'string' && this.time !== '' &&
+        this.currentDate && this.currentDate.getDate()) {
+        setOption(this.timepicker.minuteSelect, leadingZero(this.currentDate.getMinutes()));
+        if (isSeconds) {
+          setOption(this.timepicker.secondSelect, leadingZero(this.currentDate.getSeconds()));
+        }
+      }
+    }
   },
 
   /**
@@ -1110,20 +1165,29 @@ DatePicker.prototype = {
   setRangeFirstPart(date) {
     const s = this.settings;
     const dateObj = d => new Date(d.year, d.month, d.day);
-    const labelDate = d => Locale.formatDate(d, { date: 'full', locale: this.locale.name });
     const minCell = this.calendarAPI.days.find('td:visible:first');
     const maxCell = this.calendarAPI.days.find('td:visible:last');
-    const label = labelDate(date);
-    const cell = this.calendarAPI.days.find(`[aria-label="${label}"]`);
+    const key = this.isIslamic ? stringUtils.padDate(date[0], date[1], date[2]) :
+      stringUtils.padDate(date.getFullYear(), date.getMonth(), date.getDate());
+    const cell = this.calendarAPI.days.find(`[data-key="${key}"]`);
     const row = cell.closest('tr');
-    this.currentDate = date;
 
-    s.range.first = { date, label, cell, row, rowIdx: row.index(), cellIdx: cell.index() };
+    if (this.isIslamic) {
+      this.currentDate = Locale.umalquraToGregorian(date[0], date[1], date[2], date[3], date[4], date[5], date[6]);
+      this.currentDateIslamic = date;
+    } else {
+      this.currentDate = date;
+    }
+
+    const min = this.calendarAPI.getCellDate(minCell);
+    const max = this.calendarAPI.getCellDate(maxCell);
+    s.range.first = { date: this.isIslamic ? [...date] : date, cell, row, rowIdx: row.index(), cellIdx: cell.index() };
+
     s.range.extra = {
       minCell,
       maxCell,
-      min: dateObj(this.calendarAPI.getCellDate(minCell)),
-      max: dateObj(this.calendarAPI.getCellDate(maxCell)),
+      min: this.isIslamic ? [min.year, min.month, min.day] : dateObj(min),
+      max: this.isIslamic ? [max.year, max.month, max.day] : dateObj(max),
       cellLength: row.children('td').length
     };
     this.calendarAPI.settings.range.first = s.range.first;
@@ -1139,9 +1203,21 @@ DatePicker.prototype = {
    */
   insertDate(date, isReset) {
     const s = this.settings;
-    const year = (date instanceof Array ? date[0] : date.getFullYear());
-    const month = (date instanceof Array ? date[1] : date.getMonth());
-    const day = (date instanceof Array ? date[2] : date.getDate()).toString();
+    let year = '';
+    let month = '';
+    let day = '';
+
+    if (date instanceof Array) {
+      year = date[0];
+      month = date[1];
+      day = (date[2]).toString();
+    } else if (date instanceof Date && !isNaN(this.getTime(date))) {
+      year = date.getFullYear();
+      month = date.getMonth();
+      day = (date.getDate()).toString();
+    } else {
+      return;
+    }
 
     // Make sure Calendar is showing that month
     if (this.calendarAPI.currentMonth !== month || this.calendarAPI.currentYear !== year) {
@@ -1191,7 +1267,7 @@ DatePicker.prototype = {
   /**
    * Set the Formatted value in the input
    * @private
-   * @param {object} date The date to set in date format.
+   * @param {object|string} date The date to set in date format or a valid datestring
    * @param {boolean} trigger If true will trigger the change event.
    * @param {boolean} isTime will pass to set range.
    * @returns {void}
@@ -1201,8 +1277,15 @@ DatePicker.prototype = {
     this.currentDate = date;
 
     if (date instanceof Array) {
-      this.currentIslamicDate = date;
-      this.currentDate = Locale.umalquraToGregorian(date[0], date[1], date[2]);
+      this.currentDateIslamic = date;
+      this.currentDate = Locale.umalquraToGregorian(
+        date[0],
+        date[1],
+        date[2],
+        date[3],
+        date[4],
+        date[5]
+      );
     }
 
     if (s.range.useRange) {
@@ -1216,11 +1299,7 @@ DatePicker.prototype = {
       }));
     }
 
-    const newValue = typeof this.currentDate === 'string' ? this.currentDate : this.currentDate?.getTime();
-    const isChanged = this.lastValue !== newValue;
-    this.lastValue = newValue;
-
-    if (trigger && isChanged) {
+    if (trigger) {
       if (s.range.useRange) {
         if (!isTime) {
           this.element
@@ -1231,6 +1310,15 @@ DatePicker.prototype = {
         this.element.trigger('change').trigger('input');
       }
     }
+  },
+
+  /**
+    * Get a unqiue and comparable time from the date.
+    * @param  {[type]} date [description]
+    * @returns {string} comparable time string
+    */
+  getTime(date) {
+    return Array.isArray(date) ? date.join('') : date.getTime();
   },
 
   /**
@@ -1246,7 +1334,6 @@ DatePicker.prototype = {
       pattern: this.pattern,
       locale: this.locale.name
     });
-    const labelDate = d => Locale.formatDate(d, { date: 'full', locale: this.locale.name });
     let value = formatDate(date);
     let handled = false;
 
@@ -1268,8 +1355,10 @@ DatePicker.prototype = {
       }
     } else {
       // Opened calendar
-      const label = labelDate(date);
-      let cell = this.calendarAPI.days.find(`[aria-label="${label}"]`);
+      let key = this.isIslamic ?
+        stringUtils.padDate(date[0], date[1], date[2]) :
+        stringUtils.padDate(date.getFullYear(), date.getMonth(), date.getDate());
+      let cell = this.calendarAPI.days.find(`[data-key="${key}"]`);
       let row = cell.closest('tr');
 
       if (s.range.second) {
@@ -1285,8 +1374,8 @@ DatePicker.prototype = {
 
       const time = {};
       if (s.range.first) {
-        time.date = date.getTime();
-        time.firstdate = s.range.first.date.getTime();
+        time.date = this.getTime(date);
+        time.firstdate = this.getTime(s.range.first.date);
         time.min = this.calendarAPI.getDifferenceToDate(s.range.first.date, s.range.minDays);
         time.max = this.calendarAPI.getDifferenceToDate(s.range.first.date, s.range.maxDays);
       }
@@ -1307,25 +1396,36 @@ DatePicker.prototype = {
       } else {
         // Set second part for range
         handled = true;
-        this.currentDate = date;
+        if (this.isIslamic) {
+          this.currentDate = Locale.umalquraToGregorian(date[0], date[1], date[2], date[3], date[4], date[5], date[6]);
+          this.currentDateIslamic = date;
+        } else {
+          this.currentDate = date;
+        }
+
         // minDays
         if (s.range.minDays > 0) {
           if (time.date >= time.firstdate && time.date < time.min.aftertime) {
             date = time.min.after;
             if (time.date === time.firstdate) {
-              time.date = date.getTime();
+              time.date = this.getTime(date);
             }
           } else if (time.date < time.firstdate && time.date > time.min.beforetime) {
             date = time.min.before;
           }
-          cell = this.calendarAPI.days.find(`[aria-label="${label}"]`);
+          key = this.isIslamic ?
+            stringUtils.padDate(date[0], date[1], date[2]) :
+            stringUtils.padDate(date.getFullYear(), date.getMonth(), date.getDate());
+
+          cell = this.calendarAPI.days.find(`[data-key="${key}"]`);
+
           row = cell.closest('tr');
         }
         if (time.date > time.firstdate) {
-          s.range.second = { date, label, cell, row, rowIdx: row.index(), cellIdx: cell.index() };
+          s.range.second = { date, cell, row, rowIdx: row.index(), cellIdx: cell.index() };
         } else {
           s.range.second = s.range.first;
-          s.range.first = { date, label, cell, row, rowIdx: row.index(), cellIdx: cell.index() };
+          s.range.first = { date, cell, row, rowIdx: row.index(), cellIdx: cell.index() };
         }
         value = this.getRangeValue();
       }
@@ -1407,13 +1507,26 @@ DatePicker.prototype = {
       pattern: this.pattern,
       locale: this.locale.name
     }, false);
-    const getTime = d => ((d && typeof d.getTime === 'function') ? d.getTime() : (new Date()).getTime());
+    const getDateTime = d => ((d && typeof d.getTime === 'function') ? d : (new Date()));
     const alignDates = (dates) => {
       let d1 = parseDate(dates[0]);
       let d2 = parseDate(dates[1]);
+      const isAlreadyIslamic = this.isIslamic && Array.isArray(d1);
+
+      if (!isAlreadyIslamic) {
+        d1 = Locale.gregorianToUmalqura(new Date(dates[0]));
+        d2 = Locale.gregorianToUmalqura(new Date(dates[1]));
+      }
+
       if (d1 && d2) {
-        d1 = getTime(d1);
-        d2 = getTime(d2);
+        d1 = this.getTime(getDateTime(d1));
+        d2 = this.getTime(getDateTime(d2));
+
+        if (this.isIslamic && !isAlreadyIslamic) {
+          dates[0] = Locale.gregorianToUmalqura(new Date(dates[0]));
+          dates[1] = Locale.gregorianToUmalqura(new Date(dates[1]));
+        }
+
         return (d1 > d2) ? [dates[1], dates[0]] : [dates[0], dates[1]];
       }
       return dates;
@@ -1458,7 +1571,7 @@ DatePicker.prototype = {
     } else if (s.range.start && typeof s.range.start === 'string') {
       s.range.first.date = parseDate(s.range.start);
     } else if (field.dates) {
-      s.range.first.date = parseDate(field.dates[0]);
+      s.range.first.date = this.isIslamic && Array.isArray(field.dates[0]) ? field.dates[0] : parseDate(field.dates[0]);
     }
 
     // End date
@@ -1467,7 +1580,8 @@ DatePicker.prototype = {
     } else if (s.range.end && typeof s.range.end === 'string') {
       s.range.second.date = parseDate(s.range.end);
     } else if (field.dates) {
-      s.range.second.date = parseDate(field.dates[1]);
+      s.range.second.date = this.isIslamic && Array.isArray(field.dates[1]) ?
+        field.dates[1] : parseDate(field.dates[1]);
     }
 
     if (this.calendarAPI) {
@@ -1507,6 +1621,11 @@ DatePicker.prototype = {
           this.currentYear = this.currentDate.getFullYear();
           this.currentDay = this.currentDate.getDate();
         }
+        if (this.currentDate && this.isIslamic) {
+          this.currentYear = this.currentDateIslamic[0];
+          this.currentMonth = this.currentDateIslamic[1];
+          this.currentDay = this.currentDateIslamic[2];
+        }
         return;
       }
     }
@@ -1530,7 +1649,10 @@ DatePicker.prototype = {
         gregorianValue = Locale.umalquraToGregorian(
           islamicValue[0],
           islamicValue[1],
-          islamicValue[2]
+          islamicValue[2],
+          islamicValue[3],
+          islamicValue[4],
+          islamicValue[5]
         );
       }
     }
@@ -1572,7 +1694,6 @@ DatePicker.prototype = {
       this.currentYear = this.currentDateIslamic[0];
       this.currentMonth = this.currentDateIslamic[1];
       this.currentDay = this.currentDateIslamic[2];
-      this.currentIslamicDate = this.currentDateIslamic;
     } else {
       this.currentDate = this.currentDate || new Date();
       this.currentMonth = this.currentDate.getMonth();
@@ -1582,7 +1703,8 @@ DatePicker.prototype = {
 
     // Check and fix two digit year for main input element
     const dateFormat = self.pattern;
-    const isStrict = !(dateFormat === 'MMMM d' || dateFormat === 'yyyy' || dateFormat === 'MMMM');
+    const isStrict = !(dateFormat.indexOf('MMMM') > -1 || dateFormat.indexOf('MMM') > -1 || dateFormat === 'yyyy' ||
+      dateFormat === 'MMMM' || dateFormat === 'MMM' || dateFormat === 'MM');
     const fieldValueTrimmed = self.element.val().trim();
 
     if (fieldValueTrimmed !== '' && !s.range.useRange) {
@@ -1592,16 +1714,32 @@ DatePicker.prototype = {
         calendarName: this.settings.calendarName
       }, isStrict);
 
-      const hours = parsedDate ? parsedDate.getHours() : 0;
-      if (parsedDate && hours < 12 &&
+      let hours = 0;
+      if (this.isIslamic) {
+        hours = parsedDate[3];
+      } else {
+        hours = parsedDate?.getHours();
+      }
+      if (!this.isIslamic && parsedDate && hours < 12 &&
         self.element.val().trim().indexOf(this.currentCalendar.dayPeriods[1]) > -1) {
         parsedDate.setHours(hours + 12);
       }
-      if (self.pattern && self.pattern.indexOf('d') === -1) {
+      if (this.isIslamic && parsedDate && hours < 12 &&
+        self.element.val().trim().indexOf(this.currentCalendar.dayPeriods[1]) > -1) {
+        hours += 12;
+      }
+      if (!this.isIslamic && self.pattern && self.pattern.indexOf('d') === -1) {
         parsedDate.setDate(selectedDay);
+      }
+      if (this.isIslamic && self.pattern && self.pattern.indexOf('d') === -1) {
+        parsedDate[2] = selectedDay;
       }
       if (parsedDate !== undefined && self.element.val().trim() !== '' && !s.range.useRange) {
         self.setValue(parsedDate);
+
+        if (fieldValueTrimmed !== self.element.val().trim()) {
+          this.element.trigger('change').trigger('input');
+        }
       }
     }
 
@@ -1649,6 +1787,14 @@ DatePicker.prototype = {
   },
 
   /**
+   * Detects whether or not the component is readonly
+   * @returns {boolean} whether or not the component is readonly
+   */
+  isReadonly() {
+    return this.element.prop('readonly');
+  },
+
+  /**
    * Set to todays date in current format.
    * @private
    * @param {boolean} keepFocus if true keep focus on calendar
@@ -1656,7 +1802,12 @@ DatePicker.prototype = {
    */
   setToday(keepFocus) {
     const s = this.settings;
+    this.lastValue = null;
     this.currentDate = new Date();
+
+    if (this.isReadonly() || this.isDisabled()) {
+      return;
+    }
 
     if (!this.settings.useCurrentTime) {
       this.currentDate = this.setTime(this.currentDate);
@@ -1720,6 +1871,40 @@ DatePicker.prototype = {
   },
 
   /**
+   * Set the date to one more or one less day.
+   * @param  {boolean} plusMinus True for increment, false for decrement
+   */
+  adjustDay(plusMinus) {
+    if (this.isReadonly() || this.isDisabled()) {
+      return;
+    }
+
+    if (!this.currentDate) {
+      this.setToday();
+    }
+    const options = { pattern: this.pattern, locale: this.locale.name };
+    let currentDate = this.isIslamic ? this.currentDateIslamic : this.currentDate;
+    if (this.isIslamic) {
+      currentDate[2] += (plusMinus ? 1 : -1);
+      currentDate = Locale.umalquraToGregorian(
+        this.currentDateIslamic[0],
+        this.currentDateIslamic[1],
+        this.currentDateIslamic[2],
+        this.currentDateIslamic[3],
+        this.currentDateIslamic[4],
+        this.currentDateIslamic[5],
+        this.currentDateIslamic[6]
+      );
+      currentDate.setDate(currentDate.getDate() + (plusMinus ? 1 : -1));
+      currentDate = Locale.gregorianToUmalqura(currentDate);
+    } else {
+      currentDate.setDate(currentDate.getDate() + (plusMinus ? 1 : -1));
+    }
+    this.element.val(Locale.formatDate(currentDate, options));
+    this.element.trigger('change').trigger('input');
+  },
+
+  /**
    * Set time
    * @private
    * @param {object} date .
@@ -1739,13 +1924,20 @@ DatePicker.prototype = {
     const period = this.popup.find('.dropdown.period');
     const periodValue = period.val();
 
-    hours = (period.length && periodValue === this.currentCalendar.dayPeriods[1] && hours < 12)
-      ? (parseInt(hours, 10) + 12) : hours;
+    hours = (period.length && periodValue === this.currentCalendar.dayPeriods[1] && hours < 12) ?
+      (parseInt(hours, 10) + 12) : hours;
     hours = (period.length && (periodValue === this.currentCalendar.dayPeriods[0] ||
       !periodValue) && parseInt(hours, 10) === 12) ? 0 : hours;
 
-    date = new Date(date);
-    date.setHours(hours, minutes, seconds);
+    if (date instanceof Array) {
+      date[3] = hours ? parseInt(hours, 10) : date[3];
+      date[4] = minutes ? parseInt(minutes, 10) : date[4];
+      date[5] = seconds ? parseInt(seconds, 10) : date[5];
+    } else {
+      date = new Date(date);
+      date.setHours(hours, minutes, seconds);
+    }
+
     return date;
   },
 
@@ -1787,7 +1979,7 @@ DatePicker.prototype = {
       s.range.first && s.range.first.date &&
       s.range.second && s.range.second.date) {
       return `${formatDate(s.range.first.date) + s.range.separator + formatDate(s.range.second.date)}`;
-    } else if (s.range.useRange &&
+    } if (s.range.useRange &&
       s.range.first && s.range.first.date) {
       return s.placeholder ?
         `${formatDate(s.range.first.date) + s.range.separator + this.pattern}` :
@@ -1870,8 +2062,6 @@ DatePicker.prototype = {
 
     // Fix two digit year for main input element
     self.element.on('blur.datepicker', () => {
-      this.lastValue = this.currentDate?.getTime;
-
       if (this.element.val().trim() !== '') {
         this.setValueFromField();
       }

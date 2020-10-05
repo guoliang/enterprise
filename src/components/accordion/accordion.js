@@ -490,6 +490,7 @@ Accordion.prototype = {
     const header = target.parent();
     const expander = header.children('[class^="btn"]').first();
     const anchor = header.children('a');
+    const headerPanes = document.querySelectorAll('.accordion-pane');
 
     function setInitialOriginalSelection(selection) {
       if (!selection) {
@@ -503,6 +504,27 @@ Accordion.prototype = {
 
     if (key === 9) { // Tab (also triggered by Shift + Tab)
       this.headers.removeClass('is-selected');
+
+      const collapsedPanes = [...headerPanes].filter(pane => !pane.classList.contains('is-expanded'));
+      const expandedPanes = [...headerPanes].filter(pane => pane.classList.contains('is-expanded'));
+
+      // If accordion pane is expanded enable normal tabbing behavior.
+      expandedPanes.forEach((pane) => {
+        [...pane.children].forEach((el) => {
+          if (!$(el).hasClass('is-disabled')) {
+            $(el).find('a').removeAttr('tabindex');
+            $(el).find('button').removeAttr('tabindex');
+          }
+        });
+      });
+
+      // If accordion pane is collapsed skip over the child elements.
+      collapsedPanes.forEach((pane) => {
+        [...pane.children].forEach((el) => {
+          $(el).find('a').attr('tabindex', '-1');
+          $(el).find('button').attr('tabindex', '-1');
+        });
+      });
 
       if (target.is('a') && expander.length) {
         setInitialOriginalSelection(expander);
@@ -722,7 +744,7 @@ Accordion.prototype = {
       return;
     }
 
-    return header.children('a').attr('aria-expanded') === 'true';
+    return header.children('a').attr('aria-expanded') === 'true' || header.hasClass('is-expanded');
   },
 
   /**
@@ -731,8 +753,8 @@ Accordion.prototype = {
   * @returns {void}
   */
   toggle(header) {
-    if (!header || !header.length || this.isDisabled(header) || this.isFiltered(header)
-     || this.isAnimating) {
+    if (!header || !header.length || this.isDisabled(header) || this.isFiltered(header) ||
+      this.isAnimating) {
       return;
     }
 
@@ -751,13 +773,16 @@ Accordion.prototype = {
 
   /**
   * Expand the given Panel on the Accordion.
-  * @param {object} header The jquery header element.
+  * @param {object|string} header The jquery header element or the id of a header DOM element
   * @param {boolean} dontCollapseHeaders if defined, will not collapse any open accordion headers
   *  (generally used while filtering)
   * @returns {$.Deferred} resolved on the completion of an Accordion pane's
   *  collapse animation (or immediately, if animation is disabled).
   */
   expand(header, dontCollapseHeaders) {
+    if (typeof header === 'string') {
+      header = this.element.find(`#${header}`).first();
+    }
     if (!header || !header.length) {
       return;
     }
@@ -792,7 +817,7 @@ Accordion.prototype = {
       // If we have the correct settings defined, close other accordion
       // headers that are not parents of this one.
       const collapseDfds = [];
-      if (self.settings.allowOnePane && !dontCollapseHeaders) {
+      if (self.settings.allowOnePane && !dontCollapseHeaders && self.headers) {
         self.headers.not(headerParents).each(function () {
           const h = $(this);
           if (self.isExpanded(h)) {
@@ -803,13 +828,14 @@ Accordion.prototype = {
 
       // Expand all headers that are parents of this one, if applicable
       const expandDfds = [];
-      headerParents.not(header).each(function () {
-        const h = $(this);
-        if (!self.isExpanded(h)) {
-          expandDfds.push(self.expand(h));
-        }
-      });
-
+      if (headerParents) {
+        headerParents.not(header).each(function () {
+          const h = $(this);
+          if (!self.isExpanded(h)) {
+            expandDfds.push(self.expand(h));
+          }
+        });
+      }
       header.add(pane).addClass('is-expanded');
       header.children('a').attr('aria-expanded', 'true');
 
@@ -887,12 +913,15 @@ Accordion.prototype = {
 
   /**
   * Collapse the given Panel on the Accordion.
-  * @param {object} header The jquery header element.
+  * @param {object|string} header The jquery header element or the id of a header DOM element
   * @param {boolean} closeChildren If true closeChildren elements that may be on the page. Skip for performance.
   * @returns {$.Deferred} resolved on the completion of an Accordion pane's
   *  collapse animation (or immediately, if animation is disabled).
   */
   collapse(header, closeChildren = true) {
+    if (typeof header === 'string') {
+      header = this.element.find(`#${header}`).first();
+    }
     if (!header || !header.length) {
       return;
     }
@@ -913,9 +942,6 @@ Accordion.prototype = {
       expander.children('.plus-minus, .chevron').removeClass('active');
       expander.children('.audible').text(Locale.translate('Expand'));
     }
-
-    header.add(pane).removeClass('is-expanded');
-    a.attr('aria-expanded', 'false');
 
     if (closeChildren) {
       pane.closeChildren();
@@ -944,6 +970,8 @@ Accordion.prototype = {
       }
       pane.triggerHandler('aftercollapse', [a]);
       self.element.trigger('aftercollapse', [a]);
+      header.add(pane).removeClass('is-expanded');
+      a.attr('aria-expanded', 'false');
       dfd.resolve();
     }
 
@@ -1002,8 +1030,11 @@ Accordion.prototype = {
       pane
     };
 
-    function response() {
-      self.updated();
+    function response(skipUpdated, headers) {
+      if (skipUpdated !== true) {
+        self.updated(headers);
+      }
+
       setTimeout(() => {
         animationCallback.apply(self);
       }, 1);
@@ -1408,7 +1439,7 @@ Accordion.prototype = {
   * @returns {void}
   */
   teardown(headers) {
-    let globalEventTeardown = false;
+    let globalTeardown = false;
     let headerElems = headers;
 
     if (this.currentlyFiltered) {
@@ -1417,7 +1448,7 @@ Accordion.prototype = {
 
     if (!headers || !(headers instanceof jQuery)) {
       headerElems = this.headers;
-      globalEventTeardown = true;
+      globalTeardown = true;
     }
 
     if (headerElems && headerElems.length) {
@@ -1453,14 +1484,14 @@ Accordion.prototype = {
         .off('touchend.accordion click.accordion keydown.accordion');
     }
 
-    if (globalEventTeardown) {
+    if (globalTeardown) {
       this.element.off('updated.accordion selected.accordion');
-    }
 
-    delete this.anchors;
-    delete this.headers;
-    delete this.panes;
-    delete this.contentAreas;
+      delete this.anchors;
+      delete this.headers;
+      delete this.panes;
+      delete this.contentAreas;
+    }
 
     return this;
   },
@@ -1491,7 +1522,6 @@ Accordion.prototype = {
       headerElems = this.headers;
       globalEventSetup = true;
     }
-    const anchors = headerElems.find('a');
 
     // Returns "Header", "Anchor", or "Expander" based on the element's tag
     function getElementType(element) {
@@ -1543,10 +1573,6 @@ Accordion.prototype = {
       .on('mouseup.accordion', () => {
         headerWhereMouseDown = null;
       });
-
-    anchors.on('click.accordion', function (e) {
-      return clickInterceptor(e, $(this));
-    });
 
     headerElems.children('[class^="btn"]')
       .on('click.accordion', function (e) {

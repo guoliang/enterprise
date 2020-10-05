@@ -1,5 +1,4 @@
 import { ToolbarFlex } from '../../../src/components/toolbar-flex/toolbar-flex';
-import { ToolbarFlexItem } from '../../../src/components/toolbar-flex/toolbar-flex.item';
 import { cleanup } from '../../helpers/func-utils';
 
 const toolbarFavorButtonsetHTML = require('../../../app/views/components/toolbar-flex/example-favor-buttonset.html');
@@ -62,9 +61,6 @@ describe('Flex Toolbar', () => { //eslint-disable-line
 
   it('Should automatically set its focused item to the first toolbar item', () => {
     const focused = toolbarAPI.focusedItem;
-
-    expect(focused).toEqual(jasmine.any(ToolbarFlexItem));
-
     const items = toolbarAPI.items;
 
     expect(items.indexOf(focused)).toBe(0);
@@ -75,7 +71,6 @@ describe('Flex Toolbar', () => { //eslint-disable-line
 
     expect(els).toBeDefined();
     expect(els.length).toBe(6);
-    expect(els[0]).toEqual(jasmine.any(HTMLElement));
   });
 
   it('Can get a `ToolbarFlexItem` instance from one of its internal elements', () => {
@@ -83,7 +78,6 @@ describe('Flex Toolbar', () => { //eslint-disable-line
     const item = toolbarAPI.getItemFromElement(els[0]);
 
     expect(item).toBeDefined();
-    expect(item).toEqual(jasmine.any(ToolbarFlexItem));
     expect(item.type).toEqual('button');
     expect(item.disabled).toBeFalsy();
   });
@@ -102,7 +96,6 @@ describe('Flex Toolbar', () => { //eslint-disable-line
     overflow = toolbarAPI.overflowedItems;
     setTimeout(() => {
       expect(overflow.length).toBe(3);
-      expect(overflow[0]).toEqual(jasmine.any(ToolbarFlexItem));
       expect(overflow[0].overflowed).toBeTruthy();
       done();
     }, 500);
@@ -207,8 +200,6 @@ describe('Flex Toolbar', () => { //eslint-disable-line
       const elementAPI = $(item.element).data('toolbarflexitem');
 
       expect(elementAPI).toBeDefined();
-      expect(elementAPI).toEqual(jasmine.any(ToolbarFlexItem));
-
       expect(item.section).toBeDefined();
       expect(item.toolbar).toEqual(toolbarEl);
     });
@@ -216,8 +207,13 @@ describe('Flex Toolbar', () => { //eslint-disable-line
     it('Can be individually disabled and re-enabled', () => {
       const item = toolbarAPI.items[2];
 
-      expect(item.disabled).toBeTruthy();
+      expect(item.element.disabled).toBeTruthy();
       expect(item.element.getAttribute('aria-disabled')).toBeTruthy();
+
+      item.disabled = false;
+
+      expect(item.element.disabled).toBeFalsy();
+      expect(item.element.getAttribute('aria-disabled')).toBeFalsy();
     });
 
     it('Can individually become hidden and re-displayed', () => {
@@ -320,17 +316,16 @@ describe('Flex Toolbar', () => { //eslint-disable-line
       setTimeout(() => {
         expect(buttonSpyEvent).toHaveBeenTriggered();
         done();
-      }, 300);
+      }, 400);
     });
 
     it('Should trigger "selected" event for a menu button', (done) => {
       const menuButton = toolbarAPI.items[1];
       const menuButtonSpyEvent = spyOnEvent('button#menu-button', 'selected');
-      const firstMenuEntry = document.body.querySelector('ul#popupmenu-1 li a');
 
       menuButton.componentAPI.open();
       setTimeout(() => {
-        firstMenuEntry.click();
+        document.body.querySelector('ul#popupmenu-1 li a').click();
 
         setTimeout(() => {
           expect(menuButtonSpyEvent).toHaveBeenTriggered();
@@ -351,25 +346,6 @@ describe('Flex Toolbar', () => { //eslint-disable-line
         expect(moreActionsSpyEvent).toHaveBeenTriggered();
         done();
       }, 500);
-    });
-
-    it('Should trigger "selected" event for menu button in the overflow menu', (done) => {
-      rowEl.style.width = '700px';
-      const moreMenuButton = toolbarAPI.items[5];
-      const moreActionsSpyEvent = spyOnEvent('button.btn-actions', 'selected');
-      const overflowedMenuButton = document.body.querySelector('ul#popupmenu-2 li:nth-child(2)');
-      const firstMoreMenuEntry = document.body.querySelector('ul#popupmenu-2 li:nth-child(2) a#item-one');
-
-      moreMenuButton.componentAPI.open();
-      setTimeout(() => {
-        $(overflowedMenuButton).trigger('mouseover');
-        firstMoreMenuEntry.click();
-
-        setTimeout(() => {
-          expect(moreActionsSpyEvent).toHaveBeenTriggered();
-          done();
-        }, 300);
-      }, 450);
     });
   });
 });

@@ -30,6 +30,23 @@ describe('CAP jquery context tests', () => {
   });
 });
 
+describe('CAP trigger context tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/contextualactionpanel/example-trigger.html');
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('Should open popup on click', async () => {
+    await element(by.id('manual-contextual-panel')).click();
+    await browser.driver.sleep(config.sleepLonger);
+
+    expect(await element(by.css('#contextual-action-modal-xyz')).isDisplayed()).toBe(true);
+  });
+});
+
 describe('CAP jquery context tests no-flex', () => {
   beforeEach(async () => {
     await utils.setPage('/components/contextualactionpanel/test-jquery-no-flex.html');
@@ -64,9 +81,29 @@ describe('Contextual Action Panel example-index tests', () => {
       const panelEl = await element(by.className('modal'));
       await browser.driver.sleep(config.sleepLonger);
 
-      expect(await browser.protractorImageComparison.checkElement(panelEl, 'contextual-action-index')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(panelEl, 'contextual-action-index')).toEqual(0);
     });
   }
+
+  // See Github #4112
+  it('can close the CAP while a subcomponent is open', async () => {
+    // Open the Modal
+    const actionButtonEl = await element(by.css('.btn-secondary'));
+    await actionButtonEl.click();
+    await browser.driver.sleep(config.sleepLonger);
+
+    // Open the "Ship Terms" dropdown
+    const ddEl = await element(by.css('#ship-terms + .dropdown-wrapper > .dropdown'));
+    await ddEl.click();
+    await browser.driver.sleep(config.sleep);
+
+    // Click the modal's "Close" button
+    const closeBtnEl = await element(by.css('.modal .btn[name="close"]'));
+    await closeBtnEl.click();
+    await browser.driver.sleep(config.sleep);
+
+    expect(await element(by.css('#contextual-action-modal-1')).isDisplayed()).toBeFalsy();
+  });
 });
 
 describe('Contextual Action Panel example-workspace tests', () => {
@@ -100,9 +137,9 @@ describe('Contextual Action Panel "always" fullsize tests', () => {
       await browser.driver.manage().window().setSize(1200, 800);
       await element(by.id('trigger-1')).click();
       await browser.driver.sleep(config.sleep);
-      const panelEl = await element(by.css('#panel-1'));
+      const panelEl = await element.all(by.css('#panel-1')).first();
 
-      expect(await browser.protractorImageComparison.checkElement(panelEl, 'contextual-action-fullsize-always')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(panelEl, 'contextual-action-fullsize-always')).toEqual(0);
     });
   }
 
@@ -128,9 +165,9 @@ describe('Contextual Action Panel "responsive" fullsize tests', () => {
       await browser.driver.manage().window().setSize(766, 600);
       await element(by.id('trigger-1')).click();
       await browser.driver.sleep(config.sleep);
-      const panelEl = await element(by.css('#panel-1'));
+      const panelEl = await element.all(by.css('#panel-1')).first();
 
-      expect(await browser.protractorImageComparison.checkElement(panelEl, 'contextual-action-fullsize-responsive')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(panelEl, 'contextual-action-fullsize-responsive')).toEqual(0);
     });
   }
 
@@ -139,8 +176,8 @@ describe('Contextual Action Panel "responsive" fullsize tests', () => {
     await element(by.id('trigger-1')).click();
     await browser.driver.sleep(config.sleepLonger);
 
-    expect(await element(by.css('#panel-1')).isDisplayed()).toBe(true);
-    expect(await element(by.css('#panel-1')).getAttribute('class')).not.toContain('display-fullsize');
+    expect(await element.all(by.css('#panel-1')).first().isDisplayed()).toBe(true);
+    expect(await element.all(by.css('#panel-1')).first().getAttribute('class')).not.toContain('display-fullsize');
 
     // Resize the page
     await browser.driver.manage().window().setSize(766, 600);
@@ -157,7 +194,7 @@ describe('Contextual Action Panel Locale Tests', () => {
     await element(by.id('trigger-1')).click();
     await browser.driver.sleep(config.sleepLonger);
 
-    expect(await element(by.css('#panel-1')).isDisplayed()).toBe(true);
+    expect(await element.all(by.css('#panel-1')).first().isDisplayed()).toBe(true);
     const value = await element(by.id('notes')).getAttribute('value');
 
     expect(value.replace(/[\s\r\n]+/g, '')).toEqual('Locale:de-DELang:deNumber:10.11.2019Date:1.000,00');
@@ -169,10 +206,70 @@ describe('Contextual Action Panel Locale Tests', () => {
     await element(by.id('trigger-1')).click();
     await browser.driver.sleep(config.sleepLonger);
 
-    expect(await element(by.css('#panel-1')).isDisplayed()).toBe(true);
+    expect(await element.all(by.css('#panel-1')).first().isDisplayed()).toBe(true);
     const value = await element(by.id('notes')).getAttribute('value');
 
     expect(value.replace(/[\s\r\n]+/g, '')).toEqual('Locale:en-USLang:enNumber:11/10/2019Date:1,000.00');
     await utils.checkForErrors();
+  });
+});
+
+describe('Contextual Action Panel Nested tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/contextualactionpanel/test-nested?layout=nofrills');
+  });
+
+  it('Should open two caps on a page', async () => {
+    await element(by.id('button-1')).click();
+    await browser.driver.sleep(config.sleepLonger);
+
+    expect(await element(by.css('#cap-1')).isDisplayed()).toBe(true);
+    expect(await element(by.css('#cap-1 .title')).getText()).toEqual('Company Information');
+    await element(by.css('#cap-1 #close-button')).click();
+    await browser.driver.sleep(config.sleepLonger);
+
+    await element(by.id('button-2')).click();
+    await browser.driver.sleep(config.sleepLonger);
+
+    expect(await element(by.css('#cap-2')).isDisplayed()).toBe(true);
+    expect(await element(by.css('#cap-2 .title')).getText()).toEqual('Supplier Information');
+    await element(by.css('#cap-2 #close-button')).click();
+  });
+
+  it('Should open nested caps on a page', async () => {
+    await element(by.id('button-1')).click();
+    await browser.driver.sleep(config.sleepLonger);
+
+    expect(await element(by.css('#cap-1')).isDisplayed()).toBe(true);
+    expect(await element(by.css('#cap-1 .title')).getText()).toEqual('Company Information');
+    await element(by.id('trigger-2')).click();
+    await browser.driver.sleep(config.sleepLonger);
+
+    expect(await element(by.css('#cap-2')).isDisplayed()).toBe(true);
+    expect(await element(by.css('#cap-2 .title')).getText()).toEqual('Supplier Information');
+    await element(by.css('#cap-2 #close-button')).click();
+  });
+});
+
+describe('CAP Flex Toolbar API Tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/contextualactionpanel/test-disable-button.html');
+  });
+
+  it('Should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('Can disable the close button', async () => {
+    // Open the panel
+    await element(by.id('open-test-panel')).click();
+    await browser.driver.sleep(config.sleepLonger);
+
+    // Click the control button inside the panel to disable the `close` button
+    await element(by.id('disable-toggle-btn')).click();
+    await browser.driver.sleep(config.sleepLonger);
+
+    // Check the close button
+    expect(await element(by.id('modal-button-3')).getAttribute('disabled')).toBeTruthy();
   });
 });

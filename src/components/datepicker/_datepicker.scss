@@ -94,6 +94,14 @@
 .monthview-popup.popover {
   max-width: inherit;
 
+  .monthview {
+    min-width: 330px;
+  }
+
+  .monthview .monthview-table {
+    max-width: 330px;
+  }
+
   // Week picker adjustments
   &.is-range-week {
     .monthview td .day-text {
@@ -158,6 +166,11 @@ html[dir='rtl'] {
       margin-left: inherit;
       margin-right: -50px;
     }
+
+    &.datetime {
+      padding-left: 30px;
+      padding-right: 10px;
+    }
   }
 
   // Short fields
@@ -187,11 +200,23 @@ html[dir='rtl'] {
       left: 0;
     }
   }
+
+  .monthview-popup {
+    button.btn-primary:hover {
+      border-left: none;
+    }
+  }
 }
 
 // TODO
 .ie-edge {
   .monthview .btn-monthyear-pane {
     margin-left: 8px;
+  }
+}
+
+@include respond-to(tabletdown) {
+  .monthview-popup.popover .monthview {
+    min-width: 310px;
   }
 }

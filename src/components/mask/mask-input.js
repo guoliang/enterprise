@@ -440,9 +440,11 @@ MaskInput.prototype = {
   _getSafeRawValue: function getSafeRawValue(inputValue) {
     if (utils.isString(inputValue)) {
       return inputValue;
-    } else if (utils.isNumber(inputValue)) {
+    }
+    if (utils.isNumber(inputValue)) {
       return String(inputValue);
-    } else if (inputValue === undefined || inputValue === null) {
+    }
+    if (inputValue === undefined || inputValue === null) {
       return '';
     }
     throw new Error(`${'The "value" provided to the Masked Input needs to be a string or a number. The value ' +
@@ -543,6 +545,10 @@ MaskInput.prototype = {
         const decimal = typeof this.settings.patternOptions.symbols.decimal === 'string' ?
           this.settings.patternOptions.symbols.decimal : '.';
         const decimalParts = this.settings.pattern.split(decimal);
+        const decimalOpt = this.settings.patternOptions.symbols.decimal;
+        if (decimalOpt === undefined) {
+          this.settings.patternOptions.symbols.decimal = Locale.currentLocale.data.numbers.decimal;
+        }
 
         this.settings.patternOptions.integerLimit = decimalParts[0].replace(/[^#0]/g, '').length;
 

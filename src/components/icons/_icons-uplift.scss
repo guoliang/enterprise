@@ -6,7 +6,7 @@
   width: 18px; // Normalize against `height: 18px`;
 
   &.icon-empty-state {
-    fill: $theme-color-brand-primary-base;
+    fill: $ids-color-brand-primary-base;
     width: 65px;
   }
 }
@@ -37,5 +37,15 @@
 .is-firefox {
   .icon-dirty.dirty-checkbox.is-checked {
     top: 2px !important;
+  }
+}
+
+.ie,
+.ie11 {
+  .icon.plus-minus {
+    &::before,
+    &::after {
+      height: 2px;
+    }
   }
 }

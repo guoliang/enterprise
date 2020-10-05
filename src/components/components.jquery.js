@@ -14,6 +14,7 @@ import './about/about.jquery';
 import './accordion/accordion.jquery';
 import './applicationmenu/applicationmenu.jquery';
 import './blockgrid/blockgrid.jquery';
+import './breadcrumb/breadcrumb.jquery';
 import './busyindicator/busyindicator.jquery';
 import './charts/charts.jquery';
 import './calendar/calendar.jquery';
@@ -79,3 +80,7 @@ import './form-compact/form-compact.jquery';
 import './header/header.jquery';
 import './lookup/lookup.jquery';
 import './tabs-multi/multi-tabs.jquery';
+
+// Some Patterns /
+import './list-detail/list-detail.jquery';
+import './stepprocess/stepprocess.jquery';

@@ -86,7 +86,7 @@ const Locale = {  // eslint-disable-line
     'hu-HU', 'id-ID', 'it-IT', 'ja-JP', 'ko-KR', 'lt-LT', 'lv-LV', 'ms-bn', 'ms-my', 'nb-NO', 'nn-NO',
     'nl-NL', 'no-NO', 'pl-PL', 'pt-BR', 'pt-PT', 'ro-RO', 'ru-RU', 'sk-SK', 'sl-SI', 'sv-SE', 'th-TH', 'tr-TR',
     'uk-UA', 'vi-VN', 'zh-CN', 'zh-Hans', 'zh-Hant', 'zh-TW'],
-  translatedLocales: ['fr-CA', 'fr-FR', 'pl-PL', 'pt-PT'],
+  translatedLocales: ['fr-CA', 'fr-FR', 'pt-BR', 'pt-PT'],
   defaultLocale: 'en-US',
   minify: minifyCultures,
 
@@ -596,18 +596,17 @@ const Locale = {  // eslint-disable-line
     const seconds = (value instanceof Array ? value[5] : value.getSeconds());
     const millis = (value instanceof Array ? value[6] : value.getMilliseconds());
 
-    if (cal && cal.conversions) {
-      if (options.fromGregorian) {
-        const islamicParts = this.gregorianToUmalqura(value);
-        day = islamicParts[2];
-        month = islamicParts[1];
-        year = islamicParts[0];
-      } else if (options.toGregorian) {
-        const gregorianDate = this.umalquraToGregorian(year, month, day);
-        day = gregorianDate.getDate();
-        month = gregorianDate.getMonth();
-        year = gregorianDate.getFullYear();
-      }
+    if (options.fromGregorian || options.toUmalqura) {
+      const islamicParts = this.gregorianToUmalqura(value);
+      day = islamicParts[2];
+      month = islamicParts[1];
+      year = islamicParts[0];
+    }
+    if (options.toGregorian || options.fromUmalqura) {
+      const gregorianDate = this.umalquraToGregorian(year, month, day);
+      day = gregorianDate.getDate();
+      month = gregorianDate.getMonth();
+      year = gregorianDate.getFullYear();
     }
 
     // Special
@@ -777,26 +776,26 @@ const Locale = {  // eslint-disable-line
    */
   getTimeZone(date, timeZoneName) {
     const currentLocale = Locale.currentLocale.name || 'en-US';
-    let name = '';
 
     if (env.browser.name === 'ie' && env.browser.version === '11') {
       return (date).toTimeString().match(new RegExp('[A-Z](?!.*[\(])', 'g')).join('');
     }
 
-    if (timeZoneName === 'long') {
-      name = date.toLocaleTimeString(
-        currentLocale,
-        { timeZoneName: 'long' }
-      );
-    } else {
-      name = date.toLocaleTimeString(
-        currentLocale,
-        { timeZoneName: 'short' }
-      );
+    const short = date.toLocaleDateString(currentLocale);
+    const full = date.toLocaleDateString(currentLocale, { timeZoneName: timeZoneName === 'long' ? 'long' : 'short' });
+
+    // Trying to remove date from the string in a locale-agnostic way
+    const shortIndex = full.indexOf(short);
+    if (shortIndex >= 0) {
+      const trimmed = full.substring(0, shortIndex) + full.substring(shortIndex + short.length);
+
+      // by this time `trimmed` should be the timezone's name with some punctuation -
+      // trim it from both sides
+      return trimmed.replace(/^[\s,.\-:;]+|[\s,.\-:;]+$/g, '');
     }
 
-    const timezoneParts = name.replace(/[0-9:AMP]/g, '').split(' ');
-    return timezoneParts.join(' ').trimLeft();
+    // in some magic case when short representation of date is not present in the long one, just return the long one as a fallback, since it should contain the timezone's name
+    return full;
   },
 
   /**
@@ -847,7 +846,9 @@ const Locale = {  // eslint-disable-line
     let n = number.toLocaleString(args.locale, args.options);
     if (!(/undefined|null/.test(typeof groupSeparator))) {
       const gSeparator = this.getSeparator(args.locale, 'group');
-      n = n.replace(new RegExp(gSeparator, 'g'), groupSeparator.toString());
+      if (gSeparator !== '.') {
+        n = n.replace(new RegExp(gSeparator, 'g'), groupSeparator.toString());
+      }
     }
     return n;
   },
@@ -926,6 +927,7 @@ const Locale = {  // eslint-disable-line
     let dateFormat = options;
     let locale = this.currentLocale.name;
     let thisLocaleCalendar = this.calendar();
+
     if (typeof options === 'object') {
       locale = options.locale || locale;
       dateFormat = options.dateFormat || this.calendar(locale).dateFormat[dateFormat.date];
@@ -936,7 +938,7 @@ const Locale = {  // eslint-disable-line
     }
 
     if (typeof options === 'object' && options.calendarName && options.locale) {
-      thisLocaleCalendar = this.calendar(options.locale, options.calendarName);
+      thisLocaleCalendar = this.calendar(options.locale, options.language, options.calendarName);
     }
 
     if (!dateFormat) {
@@ -990,17 +992,22 @@ const Locale = {  // eslint-disable-line
     dateFormat = dateFormat.replace(',', '');
     dateString = dateString.replace(',', '');
 
-    if (dateFormat === 'Mdyyyy' || dateFormat === 'dMyyyy') {
-      dateString = `${dateString.substr(0, dateString.length - 4)}/${dateString.substr(dateString.length - 4, dateString.length)}`;
-      dateString = `${dateString.substr(0, dateString.indexOf('/') / 2)}/${dateString.substr(dateString.indexOf('/') / 2)}`;
+    // Adjust short dates where no separators or special characters are present.
+    const hasMdyyyy = dateFormat.indexOf('Mdyyyy');
+    const hasdMyyyy = dateFormat.indexOf('dMyyyy');
+    let startIndex = -1;
+    let endIndex = -1;
+    if (hasMdyyyy > -1 || hasdMyyyy > -1) {
+      startIndex = hasMdyyyy > -1 ? hasMdyyyy : hasdMyyyy > -1 ? hasdMyyyy : 0;
+      endIndex = startIndex + dateString.indexOf('/') > -1 ? dateString.indexOf('/') : dateString.length;
+      dateString = `${dateString.substr(startIndex, endIndex - 4)}/${dateString.substr(endIndex - 4, dateString.length)}`;
+      dateString = `${dateString.substr(startIndex, dateString.indexOf('/') / 2)}/${dateString.substr(dateString.indexOf('/') / 2, dateString.length)}`;
     }
-
-    if (dateFormat === 'Mdyyyy') {
-      dateFormat = 'M/d/yyyy';
+    if (hasMdyyyy > -1) {
+      dateFormat = dateFormat.replace('Mdyyyy', 'M/d/yyyy');
     }
-
-    if (dateFormat === 'dMyyyy') {
-      dateFormat = 'd/M/yyyy';
+    if (hasdMyyyy > -1) {
+      dateFormat = dateFormat.replace('dMyyyy', 'd/M/yyyy');
     }
 
     if (dateFormat.indexOf(' ') !== -1) {
@@ -1009,8 +1016,9 @@ const Locale = {  // eslint-disable-line
       dateString = dateString.replace(regex, '/');
     }
 
-    // Extra Check incase month has spaces
-    if (dateFormat.indexOf('MMMM') > -1 && Locale.isRTL() && dateFormat) {
+    // Extra Check in case month has spaces
+    if (dateFormat.indexOf('MMMM') > -1 && Locale.isRTL() && dateFormat &&
+      dateFormat !== 'MMMM/dd' && dateFormat !== 'dd/MMMM') {
       const lastIdx = dateString.lastIndexOf('/');
       dateString = dateString.substr(0, lastIdx - 1).replace('/', ' ') + dateString.substr(lastIdx);
     }
@@ -1077,6 +1085,8 @@ const Locale = {  // eslint-disable-line
     const year = this.getDatePart(formatParts, dateStringParts, 'yy', 'yyyy');
     let hasDays = false;
     let hasAmFirst = false;
+    const amSetting = thisLocaleCalendar.dayPeriods[0].replace(/\./g, '');
+    const pmSetting = thisLocaleCalendar.dayPeriods[1].replace(/\./g, '');
 
     for (i = 0, l = dateStringParts.length; i < l; i++) {
       const pattern = `${formatParts[i]}`;
@@ -1187,11 +1197,11 @@ const Locale = {  // eslint-disable-line
           dateObj.mm = value;
           break;
         case 'a':
-          if ((value.toLowerCase() === thisLocaleCalendar.dayPeriods[0]) ||
-           (value.toUpperCase() === thisLocaleCalendar.dayPeriods[0])) {
+          if ((value.toLowerCase() === amSetting) ||
+           (value.toUpperCase() === amSetting)) {
             dateObj.a = 'AM';
 
-            if (!dateObj.h && formatParts[i + 1].toLowerCase().substr(0, 1) === 'h') {
+            if (!dateObj.h && formatParts[i + 1] && formatParts[i + 1].toLowerCase().substr(0, 1) === 'h') {
               // in a few cases am/pm is before hours
               dateObj.h = dateStringParts[i + 1];
               hasAmFirst = true;
@@ -1203,8 +1213,8 @@ const Locale = {  // eslint-disable-line
             }
           }
 
-          if ((value.toLowerCase() === thisLocaleCalendar.dayPeriods[1]) ||
-           (value.toUpperCase() === thisLocaleCalendar.dayPeriods[1])) {
+          if ((value.toLowerCase() === pmSetting) ||
+           (value.toUpperCase() === pmSetting)) {
             dateObj.a = 'PM';
 
             if (dateObj.h) {
@@ -1249,6 +1259,11 @@ const Locale = {  // eslint-disable-line
       if (dateObj.isUndefindedYear) {
         const isFeb29 = parseInt(dateObj.day, 10) === 29 && parseInt(dateObj.month, 10) === 1;
         dateObj.year = isFeb29 ? closestLeap() : (new Date()).getFullYear();
+
+        if (thisLocaleCalendar.name === 'islamic-umalqura') {
+          const umDate = this.gregorianToUmalqura(new Date(dateObj.year, 0, 1));
+          dateObj.year = umDate[0];
+        }
       } else {
         delete dateObj.year;
       }
@@ -1326,6 +1341,7 @@ const Locale = {  // eslint-disable-line
         parseInt(dateObj.month, 10),
         parseInt(dateObj.day, 10),
         parseInt(dateObj.h || 0, 10),
+        parseInt(dateObj.mm || 0, 10),
         parseInt(dateObj.ss || 0, 10),
         parseInt(dateObj.ms || 0, 10)
       ];
@@ -1409,9 +1425,9 @@ const Locale = {  // eslint-disable-line
       const lang = options.locale.split('-')[0];
       languageData = this.languages[lang];
     }
-    if (options && options.locale
-      && this.currentLanguage.name !== this.currentLocale.name.substr(0, 2)
-      && this.languages[this.currentLanguage.name]) {
+    if (options && options.locale &&
+      this.currentLanguage.name !== this.currentLocale.name.substr(0, 2) &&
+      this.languages[this.currentLanguage.name]) {
       languageData = this.languages[this.currentLanguage.name];
     }
     if (options && options.language && this.languages[options.language]) {
@@ -1655,8 +1671,8 @@ const Locale = {  // eslint-disable-line
     if (languageData.messages[key] === undefined) {
       const enLang = 'en';
       // Substitue English Expression if missing
-      if (!this.languages || !this.languages[enLang] || !this.languages[enLang].messages
-          || this.languages[enLang].messages[key] === undefined) {
+      if (!this.languages || !this.languages[enLang] || !this.languages[enLang].messages ||
+          this.languages[enLang].messages[key] === undefined) {
         return showAsUndefined ? undefined : `${showBrackets ? '[' : ''}${key}${showBrackets ? ']' : ''}`;
       }
       return this.languages[enLang].messages[key].value;
@@ -1675,7 +1691,7 @@ const Locale = {  // eslint-disable-line
       return;
     }
     const base = this.languages[lang].messages;
-    this.languages[lang].messages = $.extend(false, base, messages);
+    this.languages[lang].messages = utils.extend(true, base, messages);
   },
 
   /**
@@ -1728,7 +1744,7 @@ const Locale = {  // eslint-disable-line
         dayPeriods: ['AM', 'PM']
       };
     }
-    const calendar = utils.extend({}, calendars[0]);
+    const calendar = utils.extend(true, {}, calendars[0]);
 
     if (lang && locale.substr(0, 2) !== lang) {
       const defaultLocale = this.defaultLocales.filter(a => a.lang === lang);
@@ -1779,6 +1795,15 @@ const Locale = {  // eslint-disable-line
   isRTL() {
     return !this.currentLanguage ? false :
       this.currentLanguage.direction === 'right-to-left';
+  },
+
+  /**
+   * Describes whether or not the default calendar is islamic.
+   * @param {string} locale The locale to check if not the current.
+   * @returns {boolean} whether or not this locale is "right-to-left".
+   */
+  isIslamic(locale) {
+    return this.calendar(locale)?.name === 'islamic-umalqura';
   },
 
   /**
@@ -1901,14 +1926,29 @@ const Locale = {  // eslint-disable-line
 
   /**
    * Convert umalqura to gregorian date.
-   * @param {number} year the year
+   * @param {number|array} year the year
    * @param {number} month the month
    * @param {number} day the day
-   * @returns {obgect} the date
+   * @param {number} hours the day
+   * @param {number} mins the day
+   * @param {number} secs the day
+   * @param {number} mills the day
+   * @returns {object} the date
    */
-  umalquraToGregorian(year, month, day) {
-    // toGregorian
+  umalquraToGregorian(year, month, day, hours = 0, mins = 0, secs = 0, mills = 0) {
     // Modified version of Amro Osama's code. From at https://github.com/kbwood/calendars/blob/master/src/js/jquery.calendars.ummalqura.js
+
+    // Handle if an array is passed
+    if (Array.isArray(year)) {
+      month = year[1];
+      day = year[2] || 0;
+      hours = year[3] || 0;
+      mins = year[4] || 0;
+      secs = year[5] || 0;
+      mills = year[6] || 0;
+      year = year[0];
+    }
+
     const isNumber = n => typeof n === 'number' && !isNaN(n);
     if (!isNumber(year) || !isNumber(month) || !isNumber(day)) {
       return null;
@@ -1944,10 +1984,10 @@ const Locale = {  // eslint-disable-line
       gregorianDateObj.year,
       gregorianDateObj.month,
       gregorianDateObj.day,
-      0,
-      0,
-      0,
-      0
+      hours,
+      mins,
+      secs,
+      mills
     );
     return gregorianDate;
   },

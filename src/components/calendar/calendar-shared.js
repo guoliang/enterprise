@@ -16,10 +16,24 @@ const calendarShared = {};
 calendarShared.addCalculatedFields = function addCalculatedFields(event, locale, language, eventTypes) { //eslint-disable-line
   const formatDate = (d, o) => Locale.formatDate(d, utils.extend(true, { locale: locale.name }, o));
   const parseDateOpts = { pattern: 'yyyy-MM-ddTHH:mm:ss.SSS', locale: locale.name };
-  const parseDate = dtStr => Locale.parseDate(dtStr, parseDateOpts);
+  const parseDate = (dtStr) => {
+    let retDate = Locale.parseDate(dtStr, parseDateOpts);
+    if (Locale.isIslamic(locale.name)) {
+      retDate = new Date(
+        retDate[0],
+        retDate[1],
+        retDate[2],
+        retDate[3],
+        retDate[4],
+        retDate[5],
+        retDate[6]
+      );
+    }
+    return retDate;
+  };
   const translate = str => Locale.translate(str, { locale: locale.name, language });
 
-  event.color = this.getEventTypeColor(event.type, eventTypes);
+  event.color = this.getEventTypeColor(event, eventTypes);
   event.duration = Math.abs(dateUtils.dateDiff(
     new Date(event.ends),
     new Date(event.starts),
@@ -70,6 +84,9 @@ calendarShared.addCalculatedFields = function addCalculatedFields(event, locale,
   if (event.starts) {
     const startsLocale = parseDate(event.starts);
     event.startsLocale = formatDate(startsLocale);
+    if (Locale.isIslamic(locale.name)) {
+      event.startsLocale = formatDate(Locale.gregorianToUmalqura(startsLocale));
+    }
     event.startsHourLocale = formatDate(startsLocale, { date: 'hour' });
 
     if (Array.isArray(startsLocale)) {
@@ -83,6 +100,9 @@ calendarShared.addCalculatedFields = function addCalculatedFields(event, locale,
   if (event.ends) {
     const endsLocale = parseDate(event.ends);
     event.endsLocale = formatDate(endsLocale);
+    if (Locale.isIslamic(locale.name)) {
+      event.endsLocale = formatDate(Locale.gregorianToUmalqura(endsLocale));
+    }
     event.endsHourLocale = formatDate(endsLocale, { date: 'hour' });
 
     if (Array.isArray(endsLocale)) {
@@ -191,17 +211,21 @@ calendarShared.formateTimeString = function formateTimeString(event, locale, lan
 
 /**
  * Find the matching type and get the color.
- * @param {object} id The eventType id to find.
+ * @param {object} event The eventType type or color to find.
  * @param {object} eventTypes The event types to use
  * @returns {object} The Calendar prototype, useful for chaining.
  */
-calendarShared.getEventTypeColor = function getEventTypeColor(id, eventTypes) {
+calendarShared.getEventTypeColor = function getEventTypeColor(event, eventTypes) {
   let color = 'azure';
-  if (!id) {
+  if (!event.type && !event.color) {
     return color;
   }
 
-  const eventInfo = eventTypes.filter(eventType => eventType.id === id);
+  if (event.color) {
+    return event.color;
+  }
+
+  const eventInfo = eventTypes.filter(eventType => eventType.id === event.type);
   if (eventInfo.length === 1) {
     color = eventInfo[0].color || 'azure';
   }

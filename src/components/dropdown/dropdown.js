@@ -1,5 +1,5 @@
 import * as debug from '../../utils/debug';
-import { deprecateMethod, warnAboutDeprecation } from '../../utils/deprecated';
+import { deprecateMethod } from '../../utils/deprecated';
 import { utils } from '../../utils/utils';
 import { DOM } from '../../utils/dom';
 import { Environment as env } from '../../utils/environment';
@@ -11,7 +11,7 @@ import { stringUtils } from '../../utils/string';
 
 // jQuery Components
 import '../icons/icons.jquery';
-import '../../utils/lifecycle';
+import '../../utils/lifecycle/lifecycle.jquery';
 import '../place/place.jquery';
 import '../tooltip/tooltip.jquery';
 
@@ -36,6 +36,7 @@ const reloadSourceStyles = ['none', 'open', 'typeahead'];
 * even if no selectable options are present underneath.
 * @param {boolean} [settings.showSelectAll] if true, shows a `Select All` option at the top of a multiselect.
 * @param {boolean} [settings.showTags] if true, replaces the text-based pseudo-element in the page with a dismissible, tag-based display.
+* @param {boolean} [settings.showSearchUnderSelected=false] if true, moves the Searchfield in the Dropdown list from directly on top of the pseudo-element to underneath/above, providing visibility into the currently selected results.  When configured as a Multiselect with Tags, this is the default option.
 * @param {boolean} [settings.source]  A function that can do an ajax call.
 * @param {boolean} [settings.sourceArguments = {}]  If a source method is defined, this flexible object can be
 * passed into the source method, and augmented with parameters specific to the implementation.
@@ -49,6 +50,10 @@ const reloadSourceStyles = ['none', 'open', 'typeahead'];
 * @param {object} [settings.placementOpts = null]  Gets passed to this control's Place behavior
 * @param {function} [settings.onKeyDown = null]  Allows you to hook into the onKeyDown. If you do you can access the keydown event data. And optionally return false to cancel the keyDown action.
 * @param {object} [settings.tagSettings] if defined, passes along 'clickHandler' and 'dismissHandler' functions to any Tags in the Taglist
+* @param {number|undefined} [settings.tagListMaxHeight=120] if defined, sets a maximum height for a rendered tag list, and makes it scrollable.
+* @param {string} [settings.allTextString]  Custom text string for `All` text header use in MultiSelect.
+* @param {string} [settings.selectedTextString]  Custom text string for `Selected` text header use in MultiSelect.
+* @param {boolean} [settings.selectAllFilterOnly = true] if true, when using the optional "Select All" checkbox, the Multiselect will only select items that are in the current filter.  If false, or if there is no filter present, all items will be selected.
 */
 const DROPDOWN_DEFAULTS = {
   closeOnSelect: true,
@@ -62,6 +67,7 @@ const DROPDOWN_DEFAULTS = {
   showEmptyGroupHeaders: false,
   showSelectAll: false,
   showTags: false,
+  showSearchUnderSelected: false,
   source: undefined,
   sourceArguments: {},
   reload: reloadSourceStyles[0],
@@ -70,7 +76,11 @@ const DROPDOWN_DEFAULTS = {
   maxWidth: null,
   placementOpts: null,
   onKeyDown: null,
-  tagSettings: {}
+  tagSettings: {},
+  tagListMaxHeight: 120,
+  allTextString: null,
+  selectedTextString: null,
+  selectAllFilterOnly: true
 };
 
 function Dropdown(element, settings) {
@@ -134,10 +144,11 @@ Dropdown.prototype = {
    */
   get isFocused() {
     const active = document.activeElement;
-    if (this.pseudoElem && this.pseudoElem.length && this.pseudoElem.is($(active))) {
-      return true;
-    }
-    if (this.list && this.list.length && this.list[0].contains(active)) {
+    const pseudoIsActive = this.pseudoElem.length && this.pseudoElem.is($(active));
+    const listContainsActive = this.list && this.list.length && this.list[0].contains(active);
+    const tagActive = this.tagListAPI && this.tagListAPI.element.contains(active);
+
+    if (pseudoIsActive || listContainsActive || tagActive) {
       return true;
     }
     return false;
@@ -189,6 +200,11 @@ Dropdown.prototype = {
 
     if (env.os.name === 'ios' || env.os.name === 'android') {
       this.settings.noSearch = true;
+    }
+
+    // Add "is-disabled" class to greyed-out the field
+    if (this.element.is(':disabled')) {
+      this.element.closest('.field').addClass('is-disabled');
     }
 
     // convert <select> tag's size css classes for the pseudo element
@@ -288,6 +304,9 @@ Dropdown.prototype = {
 
     // Create a taglist, if applicable
     if (this.settings.showTags) {
+      // Force searchfield to be beneath/above the pseudo element
+      // to prevent conflicts with the Tag List.
+      this.settings.showSearchUnderSelected = true;
       this.pseudoElem[0].classList.add('has-tags');
       this.renderTagList();
     }
@@ -427,6 +446,14 @@ Dropdown.prototype = {
     }
 
     this.tagListAPI.element.classList[this.selectedOptions.length ? 'remove' : 'add']('empty');
+    if (!isNaN(this.settings.tagListMaxHeight)) {
+      span.classList.add('scrollable');
+      span.style.maxHeight = tags.length ? `${this.settings.tagListMaxHeight}px` : '';
+    }
+
+    // Detect scrollbar, if applicable, to push the dropdown icon away from the scrollbar.
+    const hasScrollbar = span.scrollHeight > span.clientHeight;
+    this.pseudoElem[0].classList[hasScrollbar ? 'add' : 'remove']('has-scrollbar');
 
     if (this.isOpen()) {
       this.position();
@@ -724,6 +751,7 @@ Dropdown.prototype = {
    */
   updateList(term) {
     const self = this;
+    const s = this.settings;
     const isMobile = self.isMobile();
     const listExists = self.list !== undefined && self.list !== null && self.list.length > 0;
     let listContents = '';
@@ -734,6 +762,15 @@ Dropdown.prototype = {
     const isMultiselect = this.settings.multiple === true;
     let moveSelected = `${this.settings.moveSelected}`;
     const showSelectAll = this.settings.showSelectAll === true;
+    const headerText = {
+      all: Locale.translate('All'),
+      selected: Locale.translate('Selected'),
+      labelText: self.isInlineLabel ? self.inlineLabelText.text() : this.label.text()
+    };
+    headerText.all = (typeof s.allTextString === 'string' && s.allTextString !== '') ?
+      self.settings.allTextString : `${headerText.all} ${headerText.labelText}`;
+    headerText.selected = (typeof s.selectedTextString === 'string' && s.selectedTextString !== '') ?
+      self.settings.selectedTextString : `${headerText.selected} ${headerText.labelText}`;
 
     if (this.element[0].classList.contains('text-align-reverse')) {
       reverseText = ' text-align-reverse';
@@ -815,7 +852,7 @@ Dropdown.prototype = {
       // Highlight search term
       if (term && term.length > 0) {
         const exp = self.getSearchRegex(term);
-        text = text.replace(exp, '<i>$1</i>').trim();
+        text = text.replace(exp, '<span class="dropdown-highlight">$1</span>').trim();
       }
 
       if (self.listIcon.hasIcons &&
@@ -832,7 +869,7 @@ Dropdown.prototype = {
 
     // In multiselect scenarios, shows an option at the top of the list that will
     // select all available options if checked.
-    if (isMultiselect && showSelectAll) {
+    if (isMultiselect && showSelectAll && opts.length) {
       const allSelected = opts.not('[disabled], .hidden').length === selectedOpts.not('[disabled], .hidden').length;
 
       ulContents += `<li role="presentation" class="dropdown-select-all-list-item${allSelected ? ' is-selected' : ''}">` +
@@ -866,7 +903,7 @@ Dropdown.prototype = {
 
       // Show a "selected" header if there are selected options
       if (selectedOpts.length > 0) {
-        ulContents += buildLiHeader(`${Locale.translate('Selected')} ${self.isInlineLabel ? self.inlineLabelText.text() : this.label.text()}`);
+        ulContents += buildLiHeader(headerText.selected);
       }
 
       selectedOpts.each(function (i) {
@@ -877,7 +914,7 @@ Dropdown.prototype = {
       // Only show the "all" header beneath the selected options if there
       // are no other optgroups present
       if (!hasOptGroups && opts.length > 0) {
-        ulContents += buildLiHeader(`${Locale.translate('All')} ${self.isInlineLabel ? self.inlineLabelText.text() : this.label.text()}`);
+        ulContents += buildLiHeader(headerText.all);
       }
     }
 
@@ -989,9 +1026,11 @@ Dropdown.prototype = {
       if (span.length > 0) {
         span[0].innerHTML = `<span class="audible">${this.label.text()} </span>${xssUtils.escapeHTML(text)}`;
       }
-    }
 
-    this.setPlaceholder(text);
+      if (!this.settings.showSearchUnderSelected) {
+        this.setPlaceholder(text);
+      }
+    }
 
     // Set the "previousActiveDescendant" to the first of the items
     this.previousActiveDescendant = opts.first().val();
@@ -1099,6 +1138,18 @@ Dropdown.prototype = {
       this.searchKeyMode = false;
     }
 
+    const searchInputVal = this.searchInput[0].value;
+    const isIE11 = env.browser.name === 'ie' && env.browser.version === '11';
+    let rectStr;
+    if (!isIE11) {
+      /* eslint-disable */
+      rectStr = String.fromCodePoint(8);
+      /* eslint-enable no-alert, no-console */
+    }
+    if (searchInputVal === '.' || searchInputVal === rectStr) {
+      this.searchInput[0].value = '';
+    }
+
     this.searchInput
       .on(`keydown.${COMPONENT_NAME}`, (e) => {
         const searchInput = $(this);
@@ -1161,7 +1212,9 @@ Dropdown.prototype = {
 
     results.removeClass('hidden');
     list.not(results).add(headers).addClass('hidden');
-    list.filter(results).each(function (i) {
+
+    this.filteredItems = list.filter(results);
+    this.filteredItems.each(function (i) {
       const li = $(this);
       const a = li.children('a');
       li.attr('tabindex', i === 0 ? '0' : '-1');
@@ -1254,7 +1307,11 @@ Dropdown.prototype = {
     // Adjust height / top position
     if (this.list.hasClass('is-ontop')) {
       this.list[0].style.top = `${this.pseudoElem.offset().top - this.list.height() + this.pseudoElem.outerHeight() - 2}px`;
+    } else {
+      this.list[0].style.top = '';
     }
+
+    delete this.filteredItems;
 
     if (this.settings.multiple) {
       this.updateList();
@@ -1350,6 +1407,12 @@ Dropdown.prototype = {
         // If search mode is on, Tab should 'select' the currently highlighted
         // option in the list, update the SearchInput and close the list.
         if (self.isOpen()) {
+          if (!this.settings.multiple && options.length && selectedIndex > -1) {
+            // store the current selection
+            // selectValue
+            self.selectOption(this.correctValue($(options[selectedIndex])));
+          }
+
           self.closeList('tab');
           this.activate();
         }
@@ -1386,13 +1449,8 @@ Dropdown.prototype = {
 
           if (options.length && selectedIndex > -1) {
             // store the current selection
-            // selectValue
-            self.selectOption(this.correctValue($(options[selectedIndex])));
-          }
-
-          if (self.settings.closeOnSelect) {
-            self.closeList('select'); // Close the option list
-            self.activate();
+            const li = $(options[selectedIndex]);
+            self.selectListItem(li);
           }
         }
         e.stopPropagation();
@@ -1586,8 +1644,8 @@ Dropdown.prototype = {
         return;
       }
 
-      if (e.key !== this.filterTerm && e.key.toLowerCase() === this.filterTerm
-          && !self.settings.noSearch) {
+      if (e.key !== this.filterTerm && e.key.toLowerCase() === this.filterTerm &&
+          !self.settings.noSearch) {
         this.filterTerm = e.key;
       }
     }
@@ -1804,7 +1862,7 @@ Dropdown.prototype = {
       .addClass('is-open');
 
     this.searchInput.attr('aria-activedescendant', current.children('a').attr('id'));
-    if (this.settings.showTags) {
+    if (this.settings.showSearchUnderSelected) {
       this.list.find('.trigger').find('.icon').attr('class', 'icon search').changeIcon('search');
     }
 
@@ -1839,7 +1897,7 @@ Dropdown.prototype = {
     // If we've got a stored typeahead
     if (typeof this.filterTerm === 'string' && this.filterTerm.length > 0) {
       this.searchInput.val(this.filterTerm);
-    } else if (!this.settings.showTags) {
+    } else if (!this.settings.showSearchUnderSelected) {
       const selectedOpts = $(this.selectedOptions);
       const text = this.getOptionText(selectedOpts);
       this.searchInput.val(text);
@@ -1978,7 +2036,7 @@ Dropdown.prototype = {
     // When the Dropdown is located within a scrollable section,
     // the dropdown must close if that section is scrolled.
     let parentScrollableArea = $('.modal.is-visible .modal-body-wrapper');
-    const subScrollableSection = self.element.closest('.scrollable, .scrollable-x, .scrollable-y', '.datagrid-wrapper');
+    const subScrollableSection = self.element.parents('.scrollable, .scrollable-x, .scrollable-y, .card-content');
     if (subScrollableSection.length) {
       parentScrollableArea = subScrollableSection;
     }
@@ -2020,10 +2078,8 @@ Dropdown.prototype = {
 
     function dropdownAfterPlaceCallback(e, placementObj) {
       // Turn upside-down if flipped to the top of the pseudoElem
-      if (placementObj.wasFlipped === true) {
-        self.list.addClass('is-ontop');
-        self.listUl.prependTo(self.list);
-      }
+      self.list[placementObj.wasFlipped === true ? 'addClass' : 'removeClass']('is-ontop');
+      self.listUl[placementObj.wasFlipped === true ? 'prependTo' : 'appendTo'](self.list);
 
       const listStyle = window.getComputedStyle(self.list[0]);
       const listStyleTop = listStyle.top ? parseInt(listStyle.top, 10) : 0;
@@ -2040,8 +2096,8 @@ Dropdown.prototype = {
       const searchInputHeight = parseInt(self.searchInput[0].offsetHeight, 10);
       const isToBottom = parseInt(self.list[0].offsetTop, 10) +
         parseInt(self.list[0].offsetHeight, 10) >= window.innerHeight;
-      const isSmaller = (searchInputHeight < listHeight - (searchInputHeight * 2))
-        && (ulHeight + searchInputHeight >= listHeight);
+      const isSmaller = (searchInputHeight < listHeight - (searchInputHeight * 2)) &&
+        (ulHeight + searchInputHeight >= listHeight);
 
       let adjustedUlHeight;
       if (isSmaller) {
@@ -2061,6 +2117,11 @@ Dropdown.prototype = {
 
       if (adjustedUlHeight) {
         self.listUl[0].style.height = adjustedUlHeight;
+      }
+
+      if (adjustedUlHeight === undefined && self.list[0].classList.contains('is-ontop')) {
+        adjustedUlHeight = `${listHeight - searchInputHeight - browserOffset - 7}`;
+        self.list[0].style.top = `${listStyleTop - adjustedUlHeight}px`;
       }
 
       return placementObj;
@@ -2094,8 +2155,9 @@ Dropdown.prototype = {
     positionOpts.useParentWidth = useParentWidth;
 
     // Use negative height of the pseudoElem to get the Dropdown list to overlap the input.
-    // Ignore this for Tag List Display and always position below/above the field.
-    if (!this.settings.showTags) {
+    // This is used when rendering a tag list, or if the Dropdown is explicitly configured for placing the Search outside the pseudo-element.
+    // Otherwise, always position below/above the field.
+    if (!this.settings.showSearchUnderSelected) {
       const isRetina = window.devicePixelRatio > 1;
       const isChrome = env.browser.name === 'chrome';
       positionOpts.y = -(parseInt(parentElement[0].clientHeight, 10) +
@@ -2230,6 +2292,12 @@ Dropdown.prototype = {
     this.filterTerm = '';
     this.searchKeyMode = false;
     this.setDisplayedValues();
+    delete this.filteredItems;
+
+    // Scroll TagList to the top
+    if (this.tagListAPI) {
+      this.scrollTagList();
+    }
 
     this.searchInput.off([
       `input.${COMPONENT_NAME}`,
@@ -2312,6 +2380,23 @@ Dropdown.prototype = {
     self.listUl.scrollTop(0);
     self.listUl.scrollTop(current.offset().top - self.listUl.offset().top -
       self.listUl.scrollTop() - 40);
+  },
+
+  /**
+   * Scrolls an overflowed Tag List
+   * @private
+   * @returns {void}
+   */
+  scrollTagList() {
+    if (!this.tagListAPI) {
+      return;
+    }
+
+    setTimeout(() => {
+      if (!this.isFocused) {
+        this.tagListAPI.element.scrollTop = 0;
+      }
+    }, 5);
   },
 
   /**
@@ -2463,10 +2548,26 @@ Dropdown.prototype = {
       options: 'option:not(.is-disabled):not(:disabled)',
       items: 'li.dropdown-option:not(.separator):not(.group-label):not(.is-disabled)'
     };
-    const options = [].slice.call(this.element[0].querySelectorAll(selector.options));
-    const items = [].slice.call(this.listUl[0].querySelectorAll(selector.items));
+    let options = utils.getArrayFromList(this.element[0].querySelectorAll(selector.options));
+    let items = utils.getArrayFromList(this.listUl[0].querySelectorAll(selector.items));
     const last = options[options.length - 1];
-    let text = '';
+
+    // If the Multiselect should only select from filtered items,
+    // filter the full result sets down to the ones that aren't hidden.
+    if (this.settings.selectAllFilterOnly && this.filteredItems) {
+      options = [];
+      items = $.makeArray(this.filteredItems);
+      items.forEach((item) => {
+        const val = item.getAttribute('data-val');
+        if (!val) {
+          return;
+        }
+        const opt = this.element[0].querySelector(`option[value="${val}"]`);
+        if (opt) {
+          options.push(opt);
+        }
+      });
+    }
 
     if (doSelectAll) {
       // Select all
@@ -2478,12 +2579,6 @@ Dropdown.prototype = {
         node.selected = true;
         node.setAttribute('selected', true);
       });
-
-      text = this.getOptionText($(options));
-      const maxlength = this.element[0].getAttribute('maxlength');
-      if (maxlength) {
-        text = text.substr(0, maxlength);
-      }
     } else {
       // Clear all
       items.forEach((node) => {
@@ -2500,13 +2595,13 @@ Dropdown.prototype = {
     }
     this.previousActiveDescendant = last.value || '';
 
-    this.pseudoElem[0].querySelector('span').textContent = text;
-    this.searchInput[0].value = text;
+    this.setDisplayedValues();
     this.updateItemIcon(last);
 
-    if (this.list[0].classList.contains('search-mode')) {
+    if (!this.settings.selectAllFilterOnly && this.list[0].classList.contains('search-mode')) {
       this.resetList();
     }
+
     this.activate(true);
     this.setBadge(last);
     this.toggleTooltip();
@@ -2730,7 +2825,7 @@ Dropdown.prototype = {
    */
   deselectAll() {
     const allOptions = this.element.find('option');
-    allOptions.each((option) => {
+    allOptions.each((i, option) => {
       $(option).prop('selected', false);
       this.deselectValue(option);
     });
@@ -2875,17 +2970,19 @@ Dropdown.prototype = {
           textContent = option.label;
         }
 
+        // Detect whether or not the `<option>` should be selected
         const selectedValues = self.selectedValues;
         const hasSelectedValues = selectedValues.indexOf(val) > -1;
         if (self.settings.multiple) {
           val.forEach((value) => {
             if (value === option.value) {
               option.selected = true;
-              selected = ' selected';
             }
           });
         } else if (option.value === val || hasSelectedValues) {
           option.selected = true;
+        }
+        if (option.selected) {
           selected = ' selected';
         }
 
@@ -2925,13 +3022,13 @@ Dropdown.prototype = {
 
           self.element.append(list);
         }
-        self.updateList(searchTerm);
       }
 
       self.element.triggerHandler('complete'); // For Busy Indicator
       self.element.trigger('requestend', [searchTerm, data]);
 
       if (typeof callback !== 'function') {
+        self.updateList(searchTerm);
         return;
       }
       callback();
@@ -2976,7 +3073,8 @@ Dropdown.prototype = {
   getDataAttributes(attr, attrToExclude) {
     if (!attr) {
       return;
-    } else if (typeof attr === 'string') {
+    }
+    if (typeof attr === 'string') {
       attr = [attr];
     }
 
@@ -3008,14 +3106,10 @@ Dropdown.prototype = {
 
   /**
    * Public API for setting the `<select>`'s value.
-   * This method is slated to be removed in a future v4.10.0 or v5.0.0.
    * @private
-   * @deprecated as of v4.4.0. It's preferrable to set the input value and call `updated()` on the component API.
    * @param {string} code - The value to match and set on the value element.
    */
   setCode(code) {
-    warnAboutDeprecation(this.setCode, this.element.val);
-
     const self = this;
     const doSetting = function () {
       self.element.val(code);
@@ -3077,6 +3171,8 @@ Dropdown.prototype = {
     this.element
       .prop('disabled', true)
       .prop('readonly', false);
+
+    this.pseudoElem.addClass('is-disabled');
 
     if (this.pseudoElem.is($(document.activeElement))) {
       this.pseudoElem.blur();
@@ -3219,34 +3315,53 @@ Dropdown.prototype = {
   handleEvents() {
     const self = this;
 
+    function isTagEl(e) {
+      // If the element clicked is a tag, ignore and let the tag handle it.
+      const containedByTag = $(e.target).parents('.tag').length > 0;
+      let isTag = false;
+      if (e.target instanceof HTMLElement && typeof e.target.className === 'string') {
+        isTag = e.target.classList.contains('tag');
+      }
+
+      if (isTag || containedByTag) {
+        return true;
+      }
+
+      return false;
+    }
+
     this.pseudoElem
       .on('keydown.dropdown', e => this.handlePseudoElemKeydown(e))
-      .on('click.dropdown', (e) => {
+      .on('click.dropdown touchstart.dropdown', (e) => {
         // Would like the click event to bubble up if ctrl and shift are pressed
         if (!(e.originalEvent.ctrlKey && e.originalEvent.shiftKey)) {
           e.stopPropagation();
         }
-      }).on('mouseup.dropdown', (e) => {
+      }).on('mouseup.dropdown touchend.dropdown', (e) => {
         if (e.button === 2) {
           return;
         }
-
-        // If the element clicked is a tag, ignore and let the tag handle it.
-        const containedByTag = $(e.target).parents('.tag').length > 0;
-        let isTag = false;
-        if (e.target instanceof HTMLElement && typeof e.target.className === 'string') {
-          isTag = e.target.classList.contains('tag');
-        }
-        if (isTag || containedByTag) {
+        if (isTagEl(e)) {
           return;
         }
         self.toggle();
       })
-      .on('touchend.dropdown touchcancel.dropdown', (e) => {
+      .on('touchcancel.dropdown', (e) => {
+        if (isTagEl(e)) {
+          return;
+        }
         e.stopPropagation();
         self.toggle();
         e.preventDefault();
       });
+
+    // If the Dropdown/Multiselect loses focus while tags are showing,
+    // the tag list will scroll itself to the top.
+    if (this.tagListAPI) {
+      this.pseudoElem.on('focusout.dropdown', () => {
+        this.scrollTagList();
+      });
+    }
 
     self.element.on('activated.dropdown', () => {
       self.label.trigger('click');

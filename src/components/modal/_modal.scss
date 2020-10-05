@@ -1,6 +1,9 @@
 // Modal Dialog and Messages
 //================================================== //
 
+@import '../button/button';
+@import '../icons/icons';
+
 // NOTE:  this element gets a margin dynamically set in the "resize" method of modal.js
 .modal-wrapper {
   align-items: center;
@@ -9,6 +12,7 @@
   height: 100%;
   justify-content: center;
   margin: 0 auto;
+  position: absolute;
   width: 100%;
 }
 
@@ -18,6 +22,29 @@
   position: absolute;
   top: 0;
   width: 100%;
+
+  &[aria-hidden='true'] {
+    pointer-events: none;
+
+    .modal-wrapper {
+      display: none;
+    }
+  }
+}
+
+// Extra Class to hide the header and keep the padding
+.modal-no-header {
+  .modal-title {
+    display: none !important;
+  }
+
+  .modal-header {
+    padding: 0 0 5px;
+  }
+
+  .modal-buttonset {
+    margin-top: 2px;
+  }
 }
 
 .modal {
@@ -30,15 +57,28 @@
   max-width: 90%;
   min-width: 200px;
   opacity: 0;
+  pointer-events: none;
   position: relative;
   vertical-align: middle;
   width: auto;
   z-index: 1001;
 
-  &.is-visible {
+  &.is-visible.is-active {
     @include css3(transform, scale(1, 1));
 
     opacity: 1;
+  }
+
+  &:not(.hide-underneath) {
+    &.is-visible {
+      @include css3(transform, scale(1, 1));
+
+      opacity: 1;
+    }
+  }
+
+  &.is-active {
+    pointer-events: auto;
   }
 
   .field {
@@ -63,6 +103,10 @@
 
     textarea {
       max-width: 300px;
+
+      @media (max-width: $breakpoint-slim) {
+        max-width: 100%;
+      }
 
       &[data-error-type='tooltip'] ~ .icon-error,
       &[data-error-type='tooltip'] ~ .icon-success {
@@ -94,26 +138,6 @@
 
     &:last-child .checkbox-label {
       margin-bottom: 1px;
-    }
-  }
-
-  .field:last-child input:not(.spinbox):not(.colorpicker):not(.searchfield),
-  .field:last-child .dropdown,
-  .field:last-child textarea,
-  .field:last-child .spinbox-wrapper,
-  .field:last-child .colorpicker-container {
-    margin-bottom: 10px;
-
-    + .error-message {
-      margin-top: -10px;
-    }
-  }
-
-  .field:last-child input.error {
-    margin-bottom: 0 !important;
-
-    + .error-message {
-      margin-top: 10px !important;
     }
   }
 
@@ -229,10 +253,76 @@
       flex-direction: column;
       height: 100%;
       margin: 0;
+
+      h1 {
+        white-space: initial;
+        width: 100%;
+      }
     }
 
     .modal-body-wrapper {
       flex-grow: 1;
+    }
+  }
+
+  &:not(.display-fullsize):not(.about) {
+    .modal-content {
+      h1 {
+        @include line-clamp(2);
+
+        white-space: initial;
+        width: inherit;
+      }
+    }
+  }
+
+  &.has-minwidth {
+    &:not(.display-fullsize):not(.about) {
+      .modal-content {
+        h1 {
+          max-width: 450px;
+        }
+      }
+    }
+  }
+}
+
+.modal {
+  .searchfield-wrapper {
+    + .error-message {
+      margin-top: 7px;
+    }
+  }
+
+  .editor {
+    &.required.error {
+      margin-bottom: 0;
+
+      + .error-message {
+        margin-top: 7px;
+      }
+    }
+  }
+}
+
+// Fix tab error icons inside of modal
+.modal {
+  .tab-container {
+    &.horizontal {
+      .tab-list-container {
+        .tab:not(.last-child) {
+          &.is-error {
+            .icon-error,
+            .icon-info,
+            .icon-alert {
+              margin-left: 0;
+              margin-right: 11px;
+              margin-top: -4px;
+              position: absolute;
+            }
+          }
+        }
+      }
     }
   }
 }
@@ -240,7 +330,7 @@
 .overlay {
   @include css3(transition, all 0.2s);
 
-  background: $theme-color-palette-black;
+  background: $ids-color-palette-black;
   height: 100%;
   left: 0;
   opacity: 0;
@@ -274,9 +364,12 @@ body.modal-engaged {
 
   // Messages/Content
   h1 {
+    @include ellipsis();
+    @include line-clamp(1);
+
     color: $modal-primary-color;
-    font-size: $theme-size-font-lg;
-    font-weight: $theme-number-font-weight-base;
+    font-size: $ids-size-font-lg;
+    font-weight: $ids-number-font-weight-base;
     -webkit-margin-after: 0;
     text-align: left;
 
@@ -320,7 +413,7 @@ body.modal-engaged {
     @include font-size(16);
 
     color: $modal-primary-color;
-    font-weight: $theme-number-font-weight-base;
+    font-weight: $ids-number-font-weight-base;
     -webkit-margin-after: 0;
     text-align: left;
 
@@ -341,11 +434,12 @@ body.modal-engaged {
     overflow: auto;
     padding: 5px 20px;
 
-    .field:last-child {
+    .field:not(.label-left).last-child {
       margin-bottom: 0;
 
-      .textarea-wordcount {
-        margin-bottom: 0;
+      label,
+      .label {
+        margin-top: 20px;
       }
     }
   }
@@ -372,7 +466,7 @@ body.modal-engaged {
 
   .message {
     color: $modal-color;
-    font-size: $theme-size-font-base;
+    font-size: $ids-size-font-base;
     line-height: 20px;
     max-width: 369px;
     padding: 15px 0 25px;
@@ -423,8 +517,8 @@ body.modal-engaged {
     color: $modal-btn-color;
     cursor: pointer;
     float: left;
-    font-size: $theme-size-font-base;
-    font-weight: $theme-number-font-weight-bold;
+    font-size: $ids-size-font-base;
+    font-weight: $ids-number-font-weight-bold;
     height: 49px;
     line-height: 49px;
     margin-right: 0;
@@ -470,9 +564,11 @@ body.modal-engaged {
   }
 
   .btn-modal-primary {
+    background-color: transparent;
     color: $modal-btn-primary-color;
 
     &:hover {
+      background-color: transparent;
       color: $modal-btn-primary-hover-color;
     }
   }
@@ -490,6 +586,42 @@ html.ie {
   .modal {
     &.full-width {
       margin: 0;
+    }
+  }
+}
+
+// Solution for multi line with ellipsis
+.ie11 {
+  .modal {
+    &:not(.display-fullsize):not(.about) {
+      .modal-content {
+        h1 {
+          line-height: 1.2em;
+          margin-right: -1em;
+          max-height: 2.4em;
+          overflow: hidden;
+          padding-right: 1em;
+          position: relative;
+          text-align: justify;
+          white-space: normal;
+
+          &::before {
+            bottom: 0;
+            content: '...';
+            position: absolute;
+            right: 0;
+          }
+
+          &::after {
+            background-color: $modal-bg-color; // Covering up the ‘…’ if the text is less than the max number of lines.
+            content: '';
+            height: 1em;
+            position: absolute;
+            right: 0;
+            width: 1em;
+          }
+        }
+      }
     }
   }
 }

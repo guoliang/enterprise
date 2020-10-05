@@ -35,7 +35,7 @@ describe('Tabs click example-index tests', () => {
         .wait(protractor.ExpectedConditions.presenceOf(tabsEl), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(tabsEl, 'tabs-init')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(tabsEl, 'tabs-init')).toEqual(0);
     });
   }
 
@@ -124,7 +124,7 @@ describe('Tabs click example-counts tests', () => {
         .wait(protractor.ExpectedConditions.presenceOf(tabsEl), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(tabsEl, 'tabs-counts')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(tabsEl, 'tabs-counts')).toEqual(0);
     });
   }
 
@@ -178,7 +178,7 @@ describe('Tabs click example-counts uplift tests', () => {
         .wait(protractor.ExpectedConditions.presenceOf(tabsEl), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(tabsEl, 'tabs-counts-uplift')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(tabsEl, 'tabs-counts-uplift')).toEqual(0);
     });
   }
 });
@@ -297,6 +297,33 @@ describe('Tabs click example-add-tab button tests', () => {
     await utils.checkForErrors();
   });
 
+  // See issue #4093
+  it('Should insert tabs at the end of the tab list when applicable', async () => {
+    const inputNameEl = await element(by.css('#tab-name'));
+    const inputContentEl = await element(by.css('#tab-content'));
+    const inputTabIndexEl = await element(by.css('#tab-index'));
+    const addBtn = await element(by.css('#add-capable-tabs .add-tab-button'));
+
+    // Fill out form fields
+    await inputNameEl.sendKeys('Riya');
+    await inputContentEl.sendKeys('Riya');
+    await inputTabIndexEl.sendKeys('3');
+
+    // Click Add button
+    await addBtn.click();
+
+    // Analyze the list and ensure we have 4 tabs, with our new tab at the end
+    expect(element.all(by.className('tab')).get(3)).toBeDefined();
+    expect(element.all(by.className('tab')).get(3).getText()).toEqual('Riya');
+  });
+
+  it('Should remove add on destroy', async () => {
+    expect(await element.all(by.css('.add-tab-button')).count()).toEqual(1);
+    await element(by.id('reinvoke')).click();
+
+    expect(await element.all(by.css('.add-tab-button')).count()).toEqual(1);
+  });
+
   if (utils.isChrome() && utils.isCI()) {
     it('Should not visual regress on example-add-tab-button', async () => {
       const tabsEl = await element(by.id('add-capable-tabs'));
@@ -304,7 +331,7 @@ describe('Tabs click example-add-tab button tests', () => {
         .wait(protractor.ExpectedConditions.presenceOf(tabsEl), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(tabsEl, 'tabs-add-tab')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(tabsEl, 'tabs-add-tab')).toEqual(0);
     });
   }
 
@@ -413,7 +440,7 @@ describe('Tabs click example-dropdown-tabs tests', () => {
         .wait(protractor.ExpectedConditions.presenceOf(tabsEl), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(tabsEl, 'tabs-dropdown')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(tabsEl, 'tabs-dropdown')).toEqual(0);
     });
   }
 
@@ -472,11 +499,11 @@ describe('Tabs ajax as source tests', () => {
       .wait(protractor.ExpectedConditions.presenceOf(tabsContainerEl), config.waitsFor);
   });
 
-  it('Should not have errors', async () => {
-    await utils.checkForErrors();
-  });
+  if (!utils.isCI() && !utils.isBS()) {
+    it('Should not have errors', async () => {
+      await utils.checkForErrors();
+    });
 
-  if (!utils.isCI()) {
     // This test is being flaky on ci so ignoring there.
     it('Should be able to activate tabs', async () => {
       expect(await element(by.id('tab-one')).getAttribute('innerHTML')).not.toBe('');

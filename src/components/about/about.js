@@ -101,8 +101,8 @@ About.prototype = {
     const body = $('<div class="modal-body"></div>').appendTo(this.modal.find('.modal-content'));
 
     if (this.settings.version || this.settings.productName) {
-      const productAndVersion = this.settings.productName ? `${this.settings.productName} ${this.settings.version}`
-        : `${this.settings.version}`;
+      const productAndVersion = this.settings.productName ? `${this.settings.productName} ${this.settings.version}` :
+        `${this.settings.version}`;
 
       $('<p></p>').text(productAndVersion).appendTo(body);
     }
@@ -201,46 +201,47 @@ About.prototype = {
    * @returns {void}
    */
   close() {
-    const modalApi = this.modal.data('modal');
-
     /**
-    * Fires when the dialog is closing.
-    * @event close
-    * @memberof About
-    * @property {object} event - The jquery event object
-    * @property {object} ui - The dialog object
-    */
-    if (modalApi) {
-      modalApi.close();
+     * Fires after the dialog is done closing and removed.
+     * @event afterclose
+     * @memberof About
+     * @property {object} event - The jquery event object
+     * @property {object} ui - The dialog object
+     */
+    if (this.isBody) {
+      this.destroy();
+      return;
     }
 
     /**
-    * Fires after the dialog is done closing and removed.
-    * @event afterclose
-    * @memberof About
-    * @property {object} event - The jquery event object
-    * @property {object} ui - The dialog object
-    */
-
-    if (this.isBody) {
-      this.destroy();
+     * Fires when the dialog is closing.
+     * @event close
+     * @memberof About
+     * @property {object} event - The jquery event object
+     * @property {object} ui - The dialog object
+     */
+    const modalApi = this.modal.data('modal');
+    if (modalApi) {
+      modalApi.close();
     }
   },
 
   /**
    * Teardown and remove any added markup and events.
+   * @param {boolean} [noModalDestroy=false] if true, skips the routine for destroying the modal (presumably because this is called from another method that destroys the modal manually)
    * @returns {void}
    */
-  destroy() {
-    const modalApi = this.modal.data('modal');
-
-    if (modalApi) {
-      modalApi.element.off('beforeopen.about');
-      modalApi.destroy();
-    }
-
+  destroy(noModalDestroy) {
     this.buttons.off();
     this.element.off('open.about');
+
+    if (noModalDestroy !== true) {
+      const modalApi = this.modal.data('modal');
+      if (modalApi) {
+        modalApi.element.off('beforeopen.about');
+        modalApi.destroy();
+      }
+    }
 
     if (this.element.length > 0) {
       $.removeData(this.element[0], COMPONENT_NAME);
@@ -272,13 +273,6 @@ About.prototype = {
     */
     this.modal.data('modal').element.on('beforeopen.about', () => {
       this.modal.find('.modal-body').scrollTop(0);
-    });
-
-    $(document).on('keydown.about', (e) => {
-      // Close on Escape.
-      if (e.which === 0 || e.which === 27) {
-        this.close();
-      }
     });
 
     return this;

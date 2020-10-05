@@ -201,6 +201,20 @@ Autocomplete.prototype = {
     this.handleEvents();
   },
 
+  /**
+   * @returns {boolean} whether or not this component instance has an element that is focused.
+   */
+  get isFocused() {
+    const active = document.activeElement;
+    const input = this.element[0];
+    const $list = this.list;
+
+    if (input.isEqualNode(active) || ($list && $list.length && $list[0].contains(active))) {
+      return true;
+    }
+    return false;
+  },
+
   addMarkup() {
     this.element.addClass('autocomplete').attr({
       role: 'combobox',
@@ -419,7 +433,7 @@ Autocomplete.prototype = {
     // added and will remove soon popup close that includes aria-live="polite"
     // which have the first suggested item automatically announced when it
     // appears without moving focus.
-    const previousLiveMessages = document.querySelectorAll('#ac-is-arialive');
+    const previousLiveMessages = utils.getArrayFromList(document.querySelectorAll('#ac-is-arialive'));
     if (previousLiveMessages) {
       previousLiveMessages.forEach((messageElem) => {
         messageElem.parentNode.removeChild(messageElem);
@@ -440,6 +454,10 @@ Autocomplete.prototype = {
   },
 
   closeList(dontClosePopup) {
+    if (!this.list) {
+      return;
+    }
+
     // Remove events
     this.list.off([
       `click.${COMPONENT_NAME}`,
@@ -623,7 +641,7 @@ Autocomplete.prototype = {
     }
 
     this.loadingTimeout = setTimeout(() => {
-      if (self.isLoading()) {
+      if (self.isLoading() || !self.isFocused) {
         return;
       }
 
@@ -763,6 +781,7 @@ Autocomplete.prototype = {
    * @returns {void}
    */
   highlight(anchor, allAnchors) {
+    const val = this.element.val();
     let text = anchor.text().trim();
 
     if (anchor.find('.display-value').length > 0) {
@@ -776,6 +795,9 @@ Autocomplete.prototype = {
 
     this.noSelect = true;
     this.element.val(text).focus();
+    if (val !== text) {
+      this.element.triggerHandler('change');
+    }
   },
 
   /**

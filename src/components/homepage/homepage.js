@@ -89,12 +89,27 @@ Homepage.prototype = {
    */
   init() {
     this.isTransitionsSupports = this.supportsTransitions();
+    this.setColumns();
     this.initHeroWidget();
     this.handleEvents();
     this.initEdit();
 
     // Initial Sizing
     this.resize(this, false);
+  },
+
+  /**
+   * Set max number of columns can be shown.
+   * @private
+   * @returns {void}
+   */
+  setColumns() {
+    let columns = this.settings.columns;
+    const columnsByAttr = parseInt(this.element.attr('data-columns'), 10);
+    if (!isNaN(columnsByAttr) && (columns !== columnsByAttr && columns === HOMEPAGE_DEFAULTS.columns)) {
+      columns = columnsByAttr;
+    }
+    this.columns = columns;
   },
 
   /**
@@ -107,7 +122,7 @@ Homepage.prototype = {
     row = row || 0;
     this.rowsAndCols[row] = [];
 
-    for (let i = 0, l = this.settings.columns; i < l; i++) {
+    for (let i = 0, l = this.columns; i < l; i++) {
       this.rowsAndCols[row][i] = true;// Make all columns available in first row[true]
     }
   },
@@ -143,6 +158,9 @@ Homepage.prototype = {
   initEdit() {
     const homepage = this;
     const cards = homepage.element.find('.card, .widget');
+    if (homepage.editing === undefined) {
+      homepage.editing = homepage.settings.editing;
+    }
     if (homepage.editing) {
       cards.attr('draggable', true);
       cards.css('cursor', 'move');
@@ -172,16 +190,19 @@ Homepage.prototype = {
                 const result = this.settings.onBeforeRemoveCard(card);
                 if (result && result.then && typeof result.then === 'function') { // A promise is returned
                   result.then(() => {
+                    card.triggerHandler('removecard', [card, homepage.state]);
                     card.remove();
                     homepage.refresh(false);
                     homepage.element.triggerHandler('removecard', [card, homepage.state]);
                   });
                 } else if (result) { // Boolean is returned instead of a promise
+                  card.triggerHandler('removecard', [card, homepage.state]);
                   card.remove();
                   homepage.refresh(false);
                   homepage.element.triggerHandler('removecard', [card, homepage.state]);
                 }
               } else {
+                card.triggerHandler('removecard', [card, homepage.state]);
                 card.remove();
                 homepage.refresh(false);
                 homepage.element.triggerHandler('removecard', [card, homepage.state]);
@@ -196,6 +217,7 @@ Homepage.prototype = {
           const eastHandle = $('<div>').addClass('ui-resizable-handle ui-resizable-e')
             .drag({ axis: 'x' })
             .on('dragstart.handle', (dragevent) => {
+              dragevent.stopPropagation();
               dragevent.preventDefault();
               card.addClass('ui-resize-passive');
               card.css({ opacity: 0.9, zIndex: 90 });
@@ -215,9 +237,11 @@ Homepage.prototype = {
                     .off('mousemove.handle')
                     .off('mouseup.handle');
 
-                  card.removeClass('double-width triple-width quad-width');
+                  card.removeClass('double-width triple-width quad-width quintuple-width');
                   const widthUnits = card.width() / homepage.settings.widgetWidth;
-                  if (widthUnits > 3.5) {
+                  if (widthUnits > 4.5) {
+                    card.addClass('quintuple-width');
+                  } else if (widthUnits > 3.5) {
                     card.addClass('quad-width');
                   } else if (widthUnits > 2.5) {
                     card.addClass('triple-width');
@@ -228,12 +252,14 @@ Homepage.prototype = {
                   $('.ui-resizable-handle').remove();
                   card.css({ opacity: 1, width: '' });
                   homepage.refresh(false);
+                  card.triggerHandler('resizecard', [card, homepage.state]);
                   homepage.element.triggerHandler('resizecard', [card, homepage.state]);
                 });
             });
           const southHandle = $('<div>').addClass('ui-resizable-handle ui-resizable-s')
             .drag({ axis: 'y' })
             .on('dragstart.handle', (dragevent) => {
+              dragevent.stopPropagation();
               dragevent.preventDefault();
               card.addClass('ui-resize-passive');
               card.css({ opacity: 0.9, zIndex: 90 });
@@ -262,6 +288,7 @@ Homepage.prototype = {
                   $('.ui-resizable-handle').remove();
                   card.css({ opacity: 1, height: '' });
                   homepage.refresh(false);
+                  card.triggerHandler('resizecard', [card, homepage.state]);
                   homepage.element.triggerHandler('resizecard', [card, homepage.state]);
                 });
             });
@@ -281,7 +308,7 @@ Homepage.prototype = {
           const card = $(this);
           card.addClass('is-dragging');
         })
-        .on('dragover.card', function (event) {
+        .on('dragover.card', (event) => {
           // For mac chrome/safari to remove animation
           // https://stackoverflow.com/questions/32206010/disable-animation-for-drag-and-drop-chrome-safari
           event.preventDefault();
@@ -308,16 +335,20 @@ Homepage.prototype = {
         })
         .on('dragend.card', function () {
           const card = $(this);
-          const cardOver = $(cards).has('.drop-indicator');
-          if (card.index() < cardOver.index()) {
-            card.insertAfter(cardOver);
-          } else {
-            card.insertBefore(cardOver);
+          // Make sure this is not from a resize event, card should have is-dragging class
+          if (card.hasClass('is-dragging')) {
+            const cardOver = $(cards).has('.drop-indicator');
+            if (card.index() < cardOver.index()) {
+              card.insertAfter(cardOver);
+            } else {
+              card.insertBefore(cardOver);
+            }
+            card.removeClass('is-dragging');
+            homepage.guide.remove();
+            homepage.refresh(false);
+            card.triggerHandler('reordercard', [card, homepage.state]);
+            homepage.element.triggerHandler('reordercard', [card, homepage.state]);
           }
-          card.removeClass('is-dragging');
-          homepage.guide.remove();
-          homepage.refresh(false);
-          homepage.element.triggerHandler('reordercard', [card, homepage.state]);
         });
     } else {
       cards.attr('draggable', false);
@@ -469,7 +500,9 @@ Homepage.prototype = {
       const h = card.hasClass('double-height') ? 2 : 1;
       let w;
 
-      if (card.hasClass('quad-width')) {
+      if (card.hasClass('quintuple-width')) {
+        w = 5;
+      } else if (card.hasClass('quad-width')) {
         w = 4;
       } else if (card.hasClass('triple-width')) {
         w = 3;
@@ -483,16 +516,16 @@ Homepage.prototype = {
     }
 
     // Max sized columns brings to top
-    if (this.settings.columns > 1) {
+    if (this.columns > 1) {
       for (let i = 0, j = 0, w = 0, l = this.blocks.length; i < l; i++) {
-        if (this.blocks[i].w >= this.settings.columns && i &&
-          w && (w <= (this.settings.columns / 2))) {
+        if (this.blocks[i].w >= this.columns && i &&
+          w && (w <= (this.columns / 2))) {
           this.arrayIndexMove(this.blocks, i, j);
         }
         w += this.blocks[i].w;
-        if (w >= this.settings.columns) {
+        if (w >= this.columns) {
           w = 0; // reset
-          j = (this.blocks[j].w >= this.settings.columns) ? j + 1 : i; // record to move
+          j = (this.blocks[j].w >= this.columns) ? j + 1 : i; // record to move
         }
       }
     }
@@ -518,44 +551,51 @@ Homepage.prototype = {
    * @returns {void}
    */
   resize(self, animate) {
-    // Sizes of "breakpoints" is  320, 660, 1000 , 1340 (for 320)
-    // or 360, 740, 1120, 1500 or (for 360)
+    // Sizes of "breakpoints" is  320, 660, 1000, 1340, 1680 (for 320)
+    // or 360, 740, 1120, 1500, 1880 or (for 360)
+    const bpXXL = (self.settings.widgetWidth * 5) + (self.settings.gutterSize * 4);
     const bpXL = (self.settings.widgetWidth * 4) + (self.settings.gutterSize * 3);
     const bpDesktop = (self.settings.widgetWidth * 3) + (self.settings.gutterSize * 2);
     const bpTablet = (self.settings.widgetWidth * 2) + self.settings.gutterSize;
     const bpPhone = self.settings.widgetWidth;
 
-    let bp = bpXL; // 1340
+    let bp = bpXXL; // 1680
     // Math min against window.screen.width for single line mobile support
     const elemWidth = self.element.outerWidth();
 
     // elemWidth -= 30; //extra break space
 
     // Find the Breakpoints
-    const xl = (elemWidth >= bpXL);
+    const xxl = (elemWidth >= bpXXL);
+    const xl = (elemWidth >= bpXL && elemWidth <= bpXXL);
     const desktop = (elemWidth >= bpDesktop && elemWidth <= bpXL);
     const tablet = (elemWidth >= bpTablet && elemWidth <= bpDesktop);
     const phone = (elemWidth <= bpTablet);
 
-    const maxAttr = this.element.attr('data-columns');
+    // const maxAttr = this.element.attr('data-columns');
     const content = self.element.find('> .content');
-    this.settings.columns = parseInt((maxAttr || this.settings.columns), 10);
+    this.setColumns();
+    // this.settings.columns = parseInt((maxAttr || this.settings.columns), 10);
 
     // Assign columns as breakpoint sizes
-    if (xl && self.settings.columns === 4) {
-      self.settings.columns = 4;
+    if (xxl && self.columns === 5) {
+      self.columns = 5;
+      bp = bpXXL;
+    }
+    if (xl && /4|5/g.test(self.columns)) {
+      self.columns = 4;
       bp = bpXL;
     }
-    if ((desktop) || (xl && self.settings.columns === 3)) {
-      self.settings.columns = 3;
+    if ((desktop) || ((xxl || xl) && self.columns === 3)) {
+      self.columns = 3;
       bp = bpDesktop;
     }
     if (tablet) {
-      self.settings.columns = 2;
+      self.columns = 2;
       bp = bpTablet;
     }
     if (phone) {
-      self.settings.columns = 1;
+      self.columns = 1;
       bp = bpPhone;
     }
 
@@ -574,18 +614,20 @@ Homepage.prototype = {
       const block = self.blocks[i];
 
       // Remove extra classes if assigned earlier
-      block.elem.removeClass('to-single to-double to-triple');
+      block.elem.removeClass('to-single to-double to-triple to-quad');
 
       // If block more wider than available size, make as available size
-      if (block.w > self.settings.columns) {
-        block.w = self.settings.columns;
+      if (block.w > self.columns) {
+        block.w = self.columns;
 
-        if (self.settings.columns === 1) {
+        if (self.columns === 1) {
           block.elem.addClass('to-single');
-        } else if (self.settings.columns === 2) {
+        } else if (self.columns === 2) {
           block.elem.addClass('to-double');
-        } else if (self.settings.columns === 3) {
+        } else if (self.columns === 3) {
           block.elem.addClass('to-triple');
+        } else if (self.columns === 4) {
+          block.elem.addClass('to-quad');
         }
       }
 
@@ -594,7 +636,7 @@ Homepage.prototype = {
 
       // Set positions
       const box = self.settings.widgetWidth + self.settings.gutterSize;
-      const totalWidth = box * self.settings.columns;
+      const totalWidth = box * self.columns;
 
       const left = Locale.isRTL() ? totalWidth - ((box * block.w) + (box * available.col)) : box * available.col;// eslint-disable-line
       const top = (self.settings.widgetHeight + self.settings.gutterSize) * available.row;
@@ -639,7 +681,7 @@ Homepage.prototype = {
     * @param {number} columns The number of columns provided by this instance's settings
     * @param {object} metadata A compilation of current state information from the instance.
     */
-    self.element.triggerHandler('resize', [self.settings.columns, self.state]);
+    self.element.triggerHandler('resize', [self.columns, self.state]);
   },
 
   /**

@@ -2,6 +2,9 @@ import { Locale } from '../locale/locale';
 import { Tmpl } from '../tmpl/tmpl';
 import { xssUtils } from '../../utils/xss';
 
+// jQuery Components
+import '../icons/icons.jquery';
+
 /**
  * *
  * Calculate if a Placeholder is required and its value.
@@ -78,6 +81,15 @@ const formatters = {
     return `<span class="is-readonly">${((value === null || value === undefined) ? '' : value)}</span>`;
   },
 
+  RowNumber(row, cell, value, col, item, api) {
+    let rowNumber = api.runningCount || 1;
+    if (api?.pagerAPI?.activePage > 1) {
+      rowNumber += (api.pagerAPI.activePage - 1) * api.pagerAPI.settings.pagesize;
+    }
+
+    return `<span class="is-readonly">${rowNumber}</span>`;
+  },
+
   Date(row, cell, value, col, isReturnValue) {
     let formatted = ((value === null || value === undefined) ? '' : value);
     let value2;
@@ -123,10 +135,14 @@ const formatters = {
       if (time === null) {
         return null;
       }
+      const getValue = v => (!isNaN(parseInt(v, 10)) ? parseInt(v, 10) : 0);
       const d = new Date();
-      d.setHours(parseInt(time[1], 10) + (time[4] ? 12 : 0));
-      d.setMinutes(parseInt(time[2], 10) || 0);
-      d.setSeconds(parseInt(time[3], 10) || 0);
+      let hours = getValue(time[1]);
+      hours -= (hours === 12 ? 12 : 0);
+      hours += (time[4] ? 12 : 0);
+      d.setHours(hours);
+      d.setMinutes(getValue(time[2]));
+      d.setSeconds(getValue(time[3]));
       return d;
     };
 
@@ -498,13 +514,18 @@ const formatters = {
 
   Tag(row, cell, value, col) {
     const ranges = formatters.ClassRange(row, cell, value, col);
-    return `<span class="tag ${ranges.classes}">${value}</span>`;
+    if (col?.editorOptions?.clickable) {
+      return `<span class="tag is-linkable hide-focus ${ranges.classes}"><a class="tag-content" href="#">#${value}</a><button class="btn-linkable" focusable="false" tabindex="-1">
+        <svg class="icon" focusable="false" aria-hidden="true" role="presentation"><use href="#icon-caret-right"></use></svg>
+      </button></span>`;
+    }
+    return `<span class="tag ${ranges.classes} hide-focus"><span class="tag-content">${value}</span></span>`;
   },
 
   Alert(row, cell, value, col) {
     const ranges = formatters.ClassRange(row, cell, value, col);
     const icon = $.createIcon({
-      icon: ranges.classes,
+      icon: `${ranges.classes}-alert`,
       classes: [
         'icon',
         'datagrid-alert-icon',

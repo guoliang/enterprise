@@ -44,6 +44,22 @@ describe('Dropdown example-index tests', () => {
     expect(await element(by.id('states')).getAttribute('value')).toEqual('NM');
   });
 
+  it('Should select the active element on tab', async () => {
+    const dropdownEl = await element(by.css('#states + .dropdown-wrapper div.dropdown'));
+    await dropdownEl.sendKeys(protractor.Key.ARROW_DOWN);
+
+    const searchEl = await element(by.css('.dropdown-search'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(searchEl), config.waitsFor);
+
+    await browser.switchTo().activeElement().sendKeys('Oh');
+    await browser.driver.sleep(config.sleep);
+    await browser.switchTo().activeElement().sendKeys(protractor.Key.TAB);
+    await browser.driver.sleep(config.sleep);
+
+    expect(await element(by.id('states')).getAttribute('value')).toEqual('OH');
+  });
+
   it('Should scroll down to end of list, and Vermont Should be visible', async () => {
     await clickOnDropdown();
     await browser.driver
@@ -123,13 +139,13 @@ describe('Dropdown example-index tests', () => {
         .wait(protractor.ExpectedConditions.presenceOf(dropdownEl), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(dropdownEl, 'dropdown-init')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(dropdownEl, 'dropdown-init')).toEqual(0);
       await clickOnDropdown();
       await browser.driver
         .wait(protractor.ExpectedConditions.presenceOf(dropdownElList), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(dropdownElList, 'dropdown-open')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(dropdownElList, 'dropdown-open')).toEqual(0);
     });
   }
 
@@ -410,6 +426,33 @@ describe('Dropdown typeahead-reloading tests', () => {
     await utils.setPage('/components/dropdown/test-reload-typeahead');
   });
 
+  // Added to check highlighting of text characters
+  // See Github #4141
+  if (utils.isChrome() && utils.isCI()) {
+    it('Highlights matched filter terms and should not visually regress', async () => {
+      const dropdownEl = await element(by.css('div.dropdown'));
+      await browser.driver
+        .wait(protractor.ExpectedConditions.presenceOf(dropdownEl), config.waitsFor);
+      await browser.driver.sleep(config.sleepShort);
+
+      // Open the list
+      await dropdownEl.sendKeys(protractor.Key.ARROW_DOWN);
+      await browser.driver
+        .wait(protractor.ExpectedConditions.presenceOf(await element(by.css('.dropdown.is-open'))), config.waitsFor);
+      const dropdownSearchEl = await element(by.id('dropdown-search'));
+
+      // Filter for "New"
+      await dropdownSearchEl.sendKeys('New');
+      await browser.driver.sleep(config.sleep);
+
+      // Find the list element
+      const listEl = await element(by.css('.dropdown-list'));
+
+      // Make sure the matching text is highlighted and all results contain the match
+      expect(await browser.imageComparison.checkElement(listEl, 'dropdown-highlight-filtered')).toEqual(0);
+    });
+  }
+
   if (!utils.isSafari()) {
     it('Should open with down arrow, make ajax request, filter to "new", make ajax request, down arrow to New Jersey, and focus', async () => {
       // Open the list
@@ -601,13 +644,13 @@ describe('Dropdown badge tests', () => {
         .wait(protractor.ExpectedConditions.presenceOf(dropdownEl), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(dropdownEl, 'dropdown-badges-init')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(dropdownEl, 'dropdown-badges-init')).toEqual(0);
       await clickOnDropdown();
       await browser.driver
         .wait(protractor.ExpectedConditions.presenceOf(dropdownElList), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(dropdownElList, 'dropdown-badges-open')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(dropdownElList, 'dropdown-badges-open')).toEqual(0);
     });
 
     it('Should look good on right to left', async () => {
@@ -618,13 +661,13 @@ describe('Dropdown badge tests', () => {
         .wait(protractor.ExpectedConditions.presenceOf(dropdownEl), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(dropdownEl, 'dropdown-badges-init-rtl')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(dropdownEl, 'dropdown-badges-init-rtl')).toEqual(0);
       await clickOnDropdown();
       await browser.driver
         .wait(protractor.ExpectedConditions.presenceOf(dropdownElList), config.waitsFor);
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(dropdownElList, 'dropdown-badges-open-rtl')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(dropdownElList, 'dropdown-badges-open-rtl')).toEqual(0);
     });
   }
 });
@@ -650,7 +693,7 @@ describe('Dropdown selectValue() tests', () => {
       await updateBtnEl.click();
 
       // the update should occur and change to "Option Three"
-      expect(await browser.protractorImageComparison.checkElement(dropdownEl, 'dropdown-selectvalue')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(dropdownEl, 'dropdown-selectvalue')).toEqual(0);
     });
   }
 });

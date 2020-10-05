@@ -37,7 +37,7 @@
               //Similate some logic to determin which rows should be Collapsed
               return item.type.indexOf('Customer') != -1;
             },
-            aggregator: 'sum', //sum, averge, max ect
+            aggregator: 'sum',
             aggregate: 'purchases',
             groupRowFormatter: function (row, cell, value, col, item, api) {
               return item.type + 's ~ $' + item.sum;

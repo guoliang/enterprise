@@ -22,6 +22,10 @@ $.fn.disable = function () {
     }
   });
   this.prop('disabled', true);
+  this
+    .attr('disabled', true)
+    .closest('.field')
+    .addClass('is-disabled');
   return this;
 };
 
@@ -42,6 +46,9 @@ $.fn.enable = function () {
     }
   });
   this.prop({ disabled: false, readonly: false });
+  this.removeAttr('disabled readonly')
+    .closest('.field')
+    .removeClass('is-disabled');
   return this;
 };
 
@@ -76,10 +83,9 @@ $(() => {
     control = $('input, textarea, select', this);
     str = control.attr('class');
 
-    $(this).addClass(() =>
-      // Add "inline" and "inline-{control}" class to label
-      // assuming control class is first thing in class string
-      `inline${str ? ` inline-${str.indexOf(' ') === -1 ? str : str.substr(0, str.indexOf(' '))}` : ''}`);
+    // Add "inline" and "inline-{control}" class to label
+    // assuming control class is first thing in class string
+    $(this).addClass(() => `inline${str ? ` inline-${str.indexOf(' ') === -1 ? str : str.substr(0, str.indexOf(' '))}` : ''}`);
   });
 });
 

@@ -27,7 +27,6 @@
  * - Mid-Level Components (includes Charts)
  * - Complex Components
  */
-
 const commandLineArgs = require('yargs')
   .option('verbose', {
     alias: 'v',
@@ -46,17 +45,19 @@ const commandLineArgs = require('yargs')
   })
   .option('disable-css', {
     alias: 'c',
-    describe: 'Disables the build process for CSS',
-    default: false
+    describe: 'Disables the build process for CSS'
   })
   .option('disable-js', {
     alias: 'j',
-    describe: 'Disables the build process for JS',
-    default: false
+    describe: 'Disables the build process for JS'
   })
   .option('disable-copy', {
     alias: 'p',
-    describe: 'Disables the copying of all pre-built assets to the `/dist` folder',
+    describe: 'Disables the copying of all pre-built assets to the `/dist` folder'
+  })
+  .option('types', {
+    alias: 't',
+    describe: 'Provides a mechanism for building one or more Rollup bundle types when building IDS Javascript',
     default: false,
   })
   .argv;
@@ -64,6 +65,7 @@ const commandLineArgs = require('yargs')
 const chalk = require('chalk');
 const del = require('del');
 const fs = require('fs');
+const glob = require('glob');
 const path = require('path');
 
 const logger = require('./logger');
@@ -75,6 +77,7 @@ const createSvgHtml = require('./build/create-svg-html');
 const createColorJson = require('./build/create-color-json');
 
 const IdsMetadata = require('./helpers/ids-metadata');
+
 const IDS_THEMES = new IdsMetadata().getThemes();
 
 const SRC_DIR = path.join(__dirname, '..', 'src');
@@ -138,6 +141,13 @@ const filePaths = {
   }
 };
 
+// File Paths that are stripped/ignored.
+// Generally these are copied with another task, such as `npx grunt copy:main`.
+const ignoredFilePaths = [
+  path.join('components', 'locale', 'cultures'),
+  path.join('components', 'locale', 'info')
+];
+
 // These search terms are used when scanning existing index files to determine
 // a component's placement in a generated file.
 const searchTerms = {
@@ -169,9 +179,13 @@ const libTypes = ['components', 'behaviors', 'layouts', 'patterns', 'utils'];
 // If the source code folder shows up as a property here, it will be moved to a different
 // bucket.
 const customLocations = {
+  'datagrid.editors': 'rules',
+  'datagrid.formatters': 'rules',
+  'datagrid.groupby': 'rules',
   masks: 'rules',
   'mask-api': '',
   'mask-input': 'foundational',
+  'modal.manager': '',
   _tabs: 'mid',
   '_tabs-horizontal': 'mid',
   '_tabs-vertical': 'mid',
@@ -212,6 +226,15 @@ const dashSeparatedFileNames = {
   multitabs: 'tabs-multi', // (change)
   timepicker: 'time-picker',
   toolbarsearchfield: '' // don't actually include this one, cancel it out
+};
+
+// Map for converting certain `export` statements where the object names don't conform
+// to the expected standard of "export an object name that matches a camel-case version
+// of the dash/dot separated file name."
+const changedExportNames = {
+  'datagrid.editors': 'Editors',
+  'datagrid.formatters': 'Formatters',
+  'datagrid.groupby': 'GroupBy'
 };
 
 const lowercaseConstructorNames = {
@@ -386,6 +409,8 @@ function writeJSImportStatement(libFile, libPath, isExport, noConstructor) {
     constructorName = replaceDashesWithCaptials(constructorName);
   } else if (lowercaseConstructorNames[libFile]) {
     constructorName = lowercaseConstructorNames[libFile];
+  } else if (changedExportNames[libFile]) {
+    constructorName = changedExportNames[libFile];
   } else {
     constructorName = replaceDashesWithCaptials(libFile);
   }
@@ -658,15 +683,13 @@ function renderTargetJSFile(key, targetFilePath) {
       .replace('../src/behaviors/behaviors', './behaviors')
       .replace('../src/core/rules', './rules')
       .replace('../src/components/components', './components')
-      .replace('../src/patterns/patterns', './patterns')
       .replace('../src/behaviors/initialize/initialize.jquery', './initialize.jquery');
   } else if (key === 'initialize') {
     targetFile = getFileContents(filePaths.src.js.initialize);
     targetFile = targetFile
       .replace(/('\.\.\/)((?!\.))/g, '\'./')
       .replace(/('\.\.\/\.\.\/)/g, '\'../src/')
-      .replace('../src/components/components.jquery', './components.jquery')
-      .replace('../src/patterns/patterns.jquery', './patterns.jquery');
+      .replace('../src/components/components.jquery', './components.jquery');
   } else if (key === 'components') {
     // 'component' source code files are comprised of three buckets that need to
     // be written to the target file in a specific order.
@@ -894,8 +917,12 @@ function runBuildProcesses(requested) {
   let targetSassConfig = 'dist';
   let rollupArgs = '-c';
 
+  // Add Rollup Args, if applicable
   if (commandLineArgs.verbose) {
     rollupArgs += ' --verbose';
+  }
+  if (commandLineArgs.types) {
+    rollupArgs += ` --types=${commandLineArgs.types}`;
   }
 
   // if Requested
@@ -1010,7 +1037,14 @@ cleanAll(true).then(() => {
         if (result.endsWith('.scss')) {
           renderTarget = sassMatches;
         }
-        if (renderTarget.indexOf(result) > -1) {
+        // Don't bundle culture files, which are copied separately.
+        let hasIgnoredFilePath = false;
+        ignoredFilePaths.forEach((thisPath) => {
+          if (result.indexOf(thisPath) > -1) {
+            hasIgnoredFilePath = true;
+          }
+        });
+        if (hasIgnoredFilePath || renderTarget.indexOf(result) > -1) {
           return;
         }
         renderTarget.push(result);
@@ -1056,25 +1090,21 @@ cleanAll(true).then(() => {
       .then(() => {
         // THIS NEEDS REMOVED VERY SOON
         // Copy renamed soho theme files to their deprecated names for backwards compatibility
-
         const cssPath = path.join(__dirname, '..', 'dist', 'css');
-        const glob = require('glob');
         const cssFiles = glob.sync(`${cssPath}/**/theme-soho-*.css*`);
 
-        const proms = cssFiles.map(file => {
-          return new Promise((resolve, reject) => {
-            const getVariantRx = /theme-soho-(\w*).(\S*)/; // get variant (1) and full ext (2)
-            const pieces = getVariantRx.exec(file);
-            const backwardCompatName = (pieces[1] === "contrast" ? "high-contrast" : pieces[1]);
-            const depName = `${backwardCompatName}-theme.${pieces[2]}` // i.e. light-theme.css.map
+        const proms = cssFiles.map(file => new Promise((resolve, reject) => {
+          const getVariantRx = /theme-soho-(\w*).(\S*)/; // get variant (1) and full ext (2)
+          const pieces = getVariantRx.exec(file);
+          const backwardCompatName = (pieces[1] === 'contrast' ? 'high-contrast' : pieces[1]);
+          const depName = `${backwardCompatName}-theme.${pieces[2]}`; // i.e. light-theme.css.map
 
-            return fs.copyFile(file, `${cssPath}/${depName}`, err => {
-              if (err) reject(err);
-              logger('alert', `Backwards compatibility ${file} copied to ${depName}`);
-              resolve();
-            });
+          return fs.copyFile(file, `${cssPath}/${depName}`, (err) => {
+            if (err) reject(err);
+            logger('alert', `Backwards compatibility ${file} copied to ${depName}`);
+            resolve();
           });
-        });
+        }));
         return Promise.all(proms);
       })
       .catch(buildFailure)

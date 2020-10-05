@@ -45,7 +45,7 @@ describe('Modal init example-modal tests', () => {
     await element(by.css('body')).sendKeys(protractor.Key.TAB);
     await modalEl.sendKeys(protractor.Key.ENTER);
     await browser.driver
-      .wait(protractor.ExpectedConditions.presenceOf(element(by.className('overlay'))), config.waitsFor);
+      .wait(protractor.ExpectedConditions.visibilityOf(element(by.className('overlay'))), config.waitsFor);
 
     expect(await element(by.css('body')).getAttribute('class')).toContain('modal-engaged');
   });
@@ -53,17 +53,19 @@ describe('Modal init example-modal tests', () => {
   it('Should close modal on tab, and escape', async () => {
     const modalEl = await element(by.id('add-context'));
     await browser.driver
-      .wait(protractor.ExpectedConditions.presenceOf(modalEl), config.waitsFor);
+      .wait(protractor.ExpectedConditions.visibilityOf(modalEl), config.waitsFor);
     await modalEl.sendKeys(protractor.Key.ENTER);
     await browser.driver
-      .wait(protractor.ExpectedConditions.presenceOf(element(by.className('modal-engaged'))), config.waitsFor);
+      .wait(protractor.ExpectedConditions.visibilityOf(await element(by.css('.modal.is-visible'))), config.waitsFor);
 
     expect(await element(by.css('body')).getAttribute('class')).toContain('modal-engaged');
-    await element(by.css('body')).sendKeys(protractor.Key.ESCAPE);
+
     await browser.driver.sleep(config.sleep);
-    await element(by.css('body')).sendKeys(protractor.Key.ESCAPE);
+    await browser.driver.actions().sendKeys(protractor.Key.ESCAPE).perform();
+    await browser.driver.sleep(config.sleep);
+
     await browser.driver
-      .wait(protractor.ExpectedConditions.stalenessOf(element(by.className('modal-engaged'))), config.waitsFor);
+      .wait(protractor.ExpectedConditions.invisibilityOf(await element(by.css('.modal'))), config.waitsFor);
 
     expect(await element(by.css('body')).getAttribute('class')).not.toContain('modal-engaged');
   });
@@ -103,7 +105,7 @@ describe('Modal open example-modal tests on click', () => {
     it('Should not visual regress on example-index', async () => {
       const bodyEl = await element(by.className('modal-engaged'));
 
-      expect(await browser.protractorImageComparison.checkElement(bodyEl, 'modal-open')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(bodyEl, 'modal-open')).toEqual(0);
     });
   }
 
@@ -131,6 +133,7 @@ describe('Modal example-close-btn tests', () => {
 
     expect(await element(by.css('body')).getAttribute('class')).toContain('modal-engaged');
 
+    await browser.driver.sleep(config.sleep);
     const closeBtn = await element(by.css('button.btn-close'));
     await closeBtn.click();
     await browser.driver
@@ -351,7 +354,7 @@ describe('Modal button tests', () => {
     it('Should not visual regress on 4 buttons', async () => {
       const bodyEl = await element(by.className('modal-engaged'));
 
-      expect(await browser.protractorImageComparison.checkElement(bodyEl, 'modal-buttons')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(bodyEl, 'modal-buttons')).toEqual(0);
     });
   }
 });
@@ -372,6 +375,7 @@ describe('Modal overlay opacity tests', () => {
   });
 
   it('Should be able to set overlay opacity to 30%', async () => {
+    await browser.driver.sleep(config.sleep);
     const overlayEl = await element(by.css('.overlay'));
 
     expect(await overlayEl.getCssValue('opacity')).toBe('0.3');
@@ -415,5 +419,67 @@ describe('Modal iframe focus tests', () => {
     const focusedElemId = await browser.driver.switchTo().activeElement().getAttribute('id');
 
     expect(focusedElemId).toEqual(targetElemId);
+  });
+});
+
+describe('Nested Modal keyboard access tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/modal/test-nested');
+    const buttonEl = await element(by.id('open-first-modal'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(buttonEl), config.waitsFor);
+  });
+
+  it('can use the keyboard to escape from nested modals', async () => {
+    // Open all three modals
+    await element(by.id('open-first-modal')).click();
+    await browser.driver.sleep(config.sleep);
+    await element(by.id('open-second-modal')).click();
+    await browser.driver.sleep(config.sleep);
+    await element(by.id('open-third-modal')).click();
+    await browser.driver.sleep(config.sleep);
+
+    expect(await element(by.css('#ids-modal-root')).getAttribute('aria-hidden')).toBe(null);
+
+    // Close all three modals with the ESCAPE key
+    await browser.driver.actions().sendKeys(protractor.Key.ESCAPE).perform();
+    await browser.driver.sleep(config.sleep);
+    await browser.driver.actions().sendKeys(protractor.Key.ESCAPE).perform();
+    await browser.driver.sleep(config.sleep);
+    await browser.driver.actions().sendKeys(protractor.Key.ESCAPE).perform();
+    await browser.driver.sleep(config.sleep);
+
+    // No modals should be active, and all aria attributes set
+    expect(await element(by.css('body')).getAttribute('class')).not.toContain('modal-engaged');
+    expect(await element(by.css('#ids-modal-root')).getAttribute('aria-hidden')).not.toBe(null);
+  });
+});
+
+describe('Modal with external components tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/modal/test-external-components?layout=nofrills');
+    const buttonEl = await element(by.id('add-context'));
+    await browser.driver
+      .wait(protractor.ExpectedConditions.presenceOf(buttonEl), config.waitsFor);
+    await buttonEl.click();
+    await browser.driver.sleep(config.sleep);
+  });
+
+  it('should be able to tab into Popover elements from within the Modal', async () => {
+    // Tab to the Popover trigger button
+    await browser.driver.actions().sendKeys(protractor.Key.TAB).perform();
+    await browser.driver.actions().sendKeys(protractor.Key.TAB).perform();
+    await browser.driver.actions().sendKeys(protractor.Key.TAB).perform();
+
+    // Activate the popover
+    await browser.driver.actions().sendKeys(protractor.Key.ENTER).perform();
+    await browser.driver.sleep(config.sleep);
+
+    // Press tab, which should tab into the Popover and focus the close button
+    await browser.driver.actions().sendKeys(protractor.Key.TAB).perform();
+    const focusedElemText = await browser.driver.switchTo().activeElement().getText();
+
+    // Check the text content of the button for accuracy
+    expect(focusedElemText).toEqual('Close');
   });
 });

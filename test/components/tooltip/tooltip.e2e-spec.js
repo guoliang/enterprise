@@ -22,6 +22,26 @@ describe('Tooltips index page tests', () => {
     expect(await element(by.id('tooltip')).getText()).toEqual('Tooltips Provide Additional Information');
   });
 
+  it('should display when tabbing in', async () => {
+    await browser.driver.switchTo().activeElement().sendKeys(protractor.Key.TAB);
+    await browser.driver
+      .wait(protractor.ExpectedConditions.visibilityOf(await element(by.id('tooltip'))), config.waitsFor);
+
+    expect(await element(by.id('tooltip')).getText()).toEqual('Tooltips Provide Additional Information');
+  });
+
+  it('should not display when tabbing through', async () => {
+    await browser.actions()
+      .mouseMove(await element(by.css('.six h2')))
+      .click().perform();
+
+    await browser.actions().sendKeys(protractor.Key.TAB).perform();
+    await browser.actions().sendKeys(protractor.Key.TAB).perform();
+    await browser.driver.sleep(config.sleep);
+
+    expect(await element(by.id('tooltip')).getText()).toEqual('');
+  });
+
   if (utils.isChrome() && utils.isCI()) {
     it('Should not visual regress', async () => {
       await browser.actions().mouseMove(await element(by.id('tooltip-btn'))).perform();
@@ -32,14 +52,14 @@ describe('Tooltips index page tests', () => {
       const containerEl = await element(by.className('container'));
       await browser.driver.sleep(config.sleep);
 
-      expect(await browser.protractorImageComparison.checkElement(containerEl, 'tooltip-index')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(containerEl, 'tooltip-index')).toEqual(0);
     });
   }
 });
 
 describe('Tooltips on icon tests', () => {
   beforeEach(async () => {
-    await utils.setPage('/components/icons/example-tooltips');
+    await utils.setPage('/components/tooltip/test-svg-icons');
   });
 
   it('Should not have errors', async () => {
@@ -78,7 +98,7 @@ describe('Tooltip (personalizable) tests', () => {
         .wait(protractor.ExpectedConditions.visibilityOf(await element(by.id('tooltip'))), config.waitsFor);
       const tooltipEl = await element(by.id('tooltip'));
 
-      expect(await browser.protractorImageComparison.checkElement(tooltipEl, 'tooltip-personalized-text-color')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(tooltipEl, 'tooltip-personalized-text-color')).toEqual(0);
     });
   }
 });

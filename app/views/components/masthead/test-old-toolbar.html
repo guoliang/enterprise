@@ -1,0 +1,62 @@
+<section class="masthead">
+  <div class="{{#useFlexToolbar}}flex-toolbar{{/useFlexToolbar}}{{^useFlexToolbar}}toolbar{{/useFlexToolbar}}" data-options="{maxVisibleButtons: 6}">
+    {{#useFlexToolbar}}
+    <div class="toolbar-section logo">
+      <button type="button" class="masthead-icon">
+        <svg class="icon icon-logo" focusable="false" aria-hidden="true" role="presentation">
+          <use href="#icon-logo"></use>
+        </svg>
+         <span class="audible">Go To Home</span>
+      </button>
+    </div>
+    {{/useFlexToolbar}}
+
+    <div class="{{#useFlexToolbar}}toolbar-section {{/useFlexToolbar}}title">
+      {{^useFlexToolbar}}
+      <button type="button" class="masthead-icon">
+        <svg class="icon icon-logo" focusable="false" aria-hidden="true" role="presentation">
+          <use href="#icon-logo"></use>
+        </svg>
+         <span class="audible">Go To Home</span>
+      </button>
+      {{/useFlexToolbar}}
+      <h1 class="masthead-appname">Infor Application</h1>
+    </div>
+
+    <div class="{{#useFlexToolbar}}toolbar-section {{/useFlexToolbar}}buttonset">
+
+      <button type="button" class="btn">
+        <svg class="icon" focusable="false" aria-hidden="true" role="presentation">
+          <use href="#icon-user"></use>
+        </svg>
+        <span class="audible">User</span>
+      </button>
+
+      <button type="button" class="btn">
+        <svg class="icon" focusable="false" aria-hidden="true" role="presentation">
+          <use href="#icon-mingle-share"></use>
+        </svg>
+        <span class="audible">Share</span>
+      </button>
+
+      <button type="button" class="btn btn-menu">
+        <svg class="icon" focusable="false" aria-hidden="true" role="presentation">
+          <use href="#icon-bookmark-outlined"></use>
+        </svg>
+        <span class="audible">Bookmark</span>
+      </button>
+      <ul class="popupmenu has-icons">
+        <li><a href="#">Option 1</a></li>
+        <li><a href="#">Option 2</a></li>
+      </ul>
+
+      <button type="button" class="btn">
+        <svg class="icon" focusable="false" aria-hidden="true" role="presentation">
+          <use href="#icon-expand-app-tray"></use>
+        </svg>
+        <span class="audible">Expand App Tray</span>
+      </button>
+
+    </div>
+  </div>
+</section>

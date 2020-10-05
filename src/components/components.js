@@ -19,6 +19,7 @@ export { ApplicationMenu } from './applicationmenu/applicationmenu';
 export { Autocomplete } from './autocomplete/autocomplete';
 export { Bar } from './bar/bar';
 export { Blockgrid } from './blockgrid/blockgrid';
+export { Breadcrumb } from './breadcrumb/breadcrumb';
 export { Bullet } from './bullet/bullet';
 export { BusyIndicator } from './busyindicator/busyindicator';
 export { ColorPicker } from './colorpicker/colorpicker';
@@ -71,3 +72,7 @@ export { Lookup } from './lookup/lookup';
 export { MonthView } from './monthview/monthview';
 export { WeekView } from './week-view/week-view';
 export { MultiTabs } from './tabs-multi/multi-tabs';
+
+// JS Patterns ====/
+export { ListDetail } from './list-detail/list-detail';
+export { Stepprocess } from './stepprocess/stepprocess';

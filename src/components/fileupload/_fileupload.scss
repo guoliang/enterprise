@@ -196,7 +196,7 @@
         color: $fileupload-primary-color;
 
         span {
-          font-size: $theme-size-font-base;
+          font-size: $ids-size-font-base;
           margin-left: -2.5px;
           margin-right: -2.5px;
           padding: 5px;
@@ -272,7 +272,7 @@
       .description,
       .size {
         color: $fileupload-secondary-color;
-        font-size: $theme-size-font-base;
+        font-size: $ids-size-font-base;
         height: 34px;
         line-height: 34px;
         overflow: hidden;
@@ -286,7 +286,7 @@
         border-radius: 50%;
         float: left;
         height: 16px;
-        margin: 8px 10px 0;
+        margin: 10px 10px 0;
         width: 16px;
 
         .btn-icon {
@@ -297,13 +297,17 @@
           min-width: 18px;
           top: -1px;
           width: 18px;
+
+          .icon {
+            margin-top: -2px;
+          }
         }
 
         .icon {
           color: $fileupload-status-color;
-          height: 10px;
+          height: 10px !important;
           left: 3px;
-          top: 3px;
+          top: 2px;
           width: 10px;
         }
 
@@ -398,14 +402,14 @@
       // Area for each file error
       div.msg {
         clear: both;
-        font-size: $theme-size-font-base;
+        font-size: $ids-size-font-base;
         padding: 0 10px;
       }
 
       // Area for general error
       span.msg {
         display: inline-block;
-        font-size: $theme-size-font-base;
+        font-size: $ids-size-font-base;
         padding: 10px 10px 10px 0;
         width: calc(100% - 36px);
       }
@@ -423,6 +427,30 @@
   .field-fileupload .trigger .icon,
   .field-fileupload .trigger-close .icon {
     top: 3px;
+  }
+}
+
+// Firefox needs some hand-holding
+.is-firefox {
+  &.is-mac {
+    .fileupload-wrapper {
+      .container {
+        .file-row,
+        .progress-row {
+          .status-icon {
+            button {
+              .icon {
+                margin-top: 0;
+              }
+            }
+
+            .icon {
+              top: 3px;
+            }
+          }
+        }
+      }
+    }
   }
 }
 

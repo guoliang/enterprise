@@ -2,6 +2,7 @@ import * as debug from '../../utils/debug';
 import { utils } from '../../utils/utils';
 import { warnAboutDeprecation } from '../../utils/deprecated';
 import { Locale } from '../locale/locale';
+import { modalManager } from '../modal/modal.manager';
 
 import '../icons/icons.jquery';
 
@@ -30,7 +31,7 @@ const CONTEXTUALACTIONPANEL_DEFAULTS = {
   modalSettings: {
     buttons: null,
     centerTitle: false,
-    id: `contextual-action-modal-${parseInt($('.modal').length, 10) + 1}`,
+    id: null,
     showCloseBtn: false,
     trigger: 'click',
     useFlexToolbar: false
@@ -105,6 +106,21 @@ ContextualActionPanel.prototype = {
   },
 
   /**
+   * @returns {Toolbar|ToolbarFlex|undefined} instance of an IDS Toolbar, IDS Toolbar Flex, or undefined if one doesn't exist.
+   */
+  get toolbarAPI() {
+    let api;
+    if (this.toolbar && this.toolbar.length) {
+      if (this.toolbar[0].classList.contains('flex-toolbar')) {
+        api = this.toolbar.data('toolbar-flex');
+      } else {
+        api = this.toolbar.data('toolbar');
+      }
+    }
+    return api;
+  },
+
+  /**
   * Initialize the CAP.
   * @private
   */
@@ -123,17 +139,16 @@ ContextualActionPanel.prototype = {
   */
   setup() {
     let existingPanel = this.element.next('.contextual-action-panel');
-    const dataModal = this.element.data('modal');
+    const modalId = this.id;
     const setPanel = (id) => {
       const panelFromID = $(`#${id}`);
       if (panelFromID.length) {
         existingPanel = panelFromID;
       }
     };
+
     if (typeof dataModal === 'string') {
-      setPanel(dataModal);
-    } else if (typeof dataModal === 'object') {
-      setPanel(this.element.attr('data-modal'));
+      setPanel(modalId);
     }
 
     // Handle case with popup triggered from a menu
@@ -158,6 +173,10 @@ ContextualActionPanel.prototype = {
   build() {
     const self = this;
     const modalContent = this.settings.content;
+    this.id = (this.settings?.modalSettings?.id) || modalContent?.attr('id') || utils.uniqueId(this.element, 'contextual-action-modal');
+    if (!this.settings?.modalSettings?.id) {
+      this.settings.modalSettings.id = this.id;
+    }
 
     // Build the Content if it's not present
     if (!this.panel || !this.panel.length) {
@@ -316,7 +335,12 @@ ContextualActionPanel.prototype = {
       this.panel.detach().appendTo('body');
     }
 
-    this.element.attr('data-modal', this.settings.modalSettings.id);
+    // Creates a link to a Modal panel if one isn't present.
+    // (Usually needed for linking to a jQuery settings-defined CAP)
+    if (!this.element.attr('data-modal')) {
+      this.element.attr('data-modal', this.settings.modalSettings.id);
+    }
+
     if (!this.panel.attr('id')) {
       this.panel.attr('id', this.settings.modalSettings.id);
     }
@@ -438,7 +462,7 @@ ContextualActionPanel.prototype = {
   * @returns {void}
   */
   handleToolbarSelected() {
-    this.close();
+    this.close(true);
   },
 
   /**
@@ -470,7 +494,6 @@ ContextualActionPanel.prototype = {
 
     const children = self.panel.find('.modal-body').children();
     children.first().unwrap().unwrap();
-
     self.element.removeAttr('data-modal');
 
     if (self.closeButton && self.closeButton.length) {
@@ -485,16 +508,17 @@ ContextualActionPanel.prototype = {
 
   /**
   * Close the Contextual Action Panel if open and call destroy.
+  * @param {boolean} [doForce = false] if true, forces the modal to close.
   * @returns {void}
   */
-  close() {
+  close(doForce = false) {
     let destroy;
     if (this.settings.modalSettings.trigger === 'immediate') {
       destroy = true;
     }
 
     if (this.modalAPI) {
-      this.modalAPI.close(destroy);
+      this.modalAPI.close(destroy, false, doForce);
     }
   },
 
@@ -544,6 +568,20 @@ ContextualActionPanel.prototype = {
       this.modalAPI.close(true);
     }
     $.removeData(this.element[0], COMPONENT_NAME);
+    if (this.toolbar && this.toolbar.data('toolbar')) {
+      this.toolbar.data('toolbar').destroy();
+    }
+    if (this.toolbar && this.toolbar.data('toolbarFlex')) {
+      this.toolbar.data('toolbarFlex').destroy();
+    }
+  },
+
+  /**
+  * Destroy an and all active cap instances
+  * @returns {void}
+  */
+  destroyAll() {
+    modalManager.destroyAll(true);
   }
 };
 

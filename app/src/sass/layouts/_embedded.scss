@@ -3,33 +3,47 @@
 
 .layout-embedded {
   height: 100%;
+  overflow: hidden;
+
+  .container {
+    height: calc(100% - 20px);
+    overflow: auto;
+    position: relative;
+
+    > .page-container {
+      padding: 20px 0;
+    }
+
+    > .row:first-child {
+      padding-top: 20px;
+    }
+  }
 
   .custom-header {
-    background-color: $theme-color-palette-white;
+    background-color: $ids-color-palette-white;
     height: 38px;
-    margin-bottom: 20px;
     width: 100%;
     z-index: 100;
 
     button {
       border-bottom: 2px solid transparent;
-      color: $theme-color-palette-graphite-60;
+      color: $ids-color-palette-slate-60;
       display: block;
       float: left;
-      font-size: $theme-size-font-base;
+      font-size: $ids-size-font-base;
       line-height: 34px;
       margin: 0 10px;
       padding: 0 10px;
       position: relative;
 
       &:hover {
-        border-bottom: 2px solid $theme-color-palette-black;
-        color: $theme-color-palette-black;
+        border-bottom: 2px solid $ids-color-palette-black;
+        color: $ids-color-palette-black;
       }
 
       &:active,
       &.custom-active {
-        border-bottom: 2px solid $theme-color-brand-primary-base;
+        border-bottom: 2px solid $ids-color-brand-primary-base;
       }
     }
   }

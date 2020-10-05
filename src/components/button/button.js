@@ -85,6 +85,9 @@ Button.prototype = {
    * @returns {boolean} whether or not this component is currently disabled
    */
   get disabled() {
+    if (this.element.parent().is('.spinbox-wrapper')) {
+      return this.element.parent().find('input')[0].disabled;
+    }
     return this.element[0].disabled;
   },
 
@@ -93,10 +96,8 @@ Button.prototype = {
    * @returns {void}
    */
   set disabled(val) {
-    const trueVal = (val === true);
-    this.settings.disabled = trueVal;
-    this.element[0].disabled = trueVal;
-    this.element[0].classList[trueVal ? 'add' : 'remove']('is-disabled');
+    const isTrue = (val === true);
+    this.element[0].disabled = isTrue;
   },
 
   /**
@@ -392,7 +393,7 @@ Button.prototype = {
     }
 
     // Hide/Show Ripple Effect
-    elemClasses[this.settings.ripple ? 'add' : 'remove']('no-ripple');
+    elemClasses[this.settings.ripple ? 'remove' : 'add']('no-ripple');
     if (this.settings.ripple) {
       this.element.on('touchstart.button click.button', (e) => {
         this.createRipple(e);

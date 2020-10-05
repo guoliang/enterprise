@@ -9,7 +9,7 @@ import { renderLoop, RenderLoopItem } from '../../utils/renderloop';
 import { Locale } from '../locale/locale';
 
 // jQuery components
-import '../../utils/lifecycle';
+import '../../utils/lifecycle/lifecycle.jquery';
 import '../icons/icons.jquery';
 import '../popupmenu/popupmenu.jquery';
 import '../tooltip/tooltip.jquery';
@@ -431,6 +431,19 @@ Tabs.prototype = {
         this.renderEdgeFading();
       });
       this.renderEdgeFading();
+    }
+
+    // Setup a resize observer on both the tab panel container and the tab list container (if applicable)
+    // to auto-refresh the state of the Tabs on resize.  ResizeObserver doesn't work in IE.
+    if (typeof ResizeObserver !== 'undefined') {
+      this.ro = new ResizeObserver(() => {
+        $('body').triggerHandler('resize');
+      });
+
+      this.ro.observe(this.element[0]);
+      if (this.containerElement) {
+        this.ro.observe(this.containerElement[0]);
+      }
     }
 
     return this;
@@ -1461,7 +1474,7 @@ Tabs.prototype = {
   },
 
   /**
-   * @private
+   * Resets the visual state of the Tab List and Tab Panel Container to match current width/height and responsive.
    * @param {boolean} ignoreResponsiveCheck if true, doesn't run `this.checkResponsive()`
    * @returns {void}
    */
@@ -2265,7 +2278,7 @@ Tabs.prototype = {
 
       switch (contentType) {
         case 'string':
-          hasId = sourceString.match(/#/g);
+          hasId = sourceString.match(/^#/g);
           // Text Content or a Selector.
           if (hasId !== null) {
             const obj = $(sourceString);
@@ -2675,7 +2688,8 @@ Tabs.prototype = {
 
     if (e) {
       return getTabFromEvent(e);
-    } else if (tabId) {
+    }
+    if (tabId) {
       return getTabFromId(tabId);
     }
 
@@ -3435,11 +3449,6 @@ Tabs.prototype = {
 
     const self = this;
     const target = li;
-    const scrollingTablist = this.tablistContainer;
-    const isRTL = Locale.isRTL();
-    let tablistScrollWidth;
-    let tablistScrollLeft;
-    let anchorStyle;
 
     this.animatedBar.removeClass('no-transition');
 
@@ -3447,33 +3456,11 @@ Tabs.prototype = {
       this.animatedBar.removeClass('visible');
       return;
     }
-
-    const targetStyle = window.getComputedStyle(target[0], null);
-    let paddingRight = parseInt(targetStyle.getPropertyValue('padding-right'), 10) || 0;
-    const width = parseInt(targetStyle.getPropertyValue('width'), 10) || 0;
-
-    if (target.is('.tab')) {
-      anchorStyle = window.getComputedStyle(target.children('a')[0]);
-      paddingRight += parseInt(anchorStyle.getPropertyValue('padding-right'), 10) || 0;
-    }
-
-    const left = isRTL ?
-      (paddingRight + target.position().left + target.outerWidth(true)) : (target.position().left);
-
     clearTimeout(self.animationTimeout);
     this.animatedBar.addClass('visible');
 
     function animationTimeout(cb) {
-      const style = self.animatedBar[0].style;
-      tablistScrollLeft = scrollingTablist[0].scrollLeft;
-      tablistScrollWidth = scrollingTablist[0].scrollWidth;
-
-      if (isRTL) {
-        style.right = `${tablistScrollWidth + paddingRight - (left + tablistScrollLeft)}px`;
-      } else {
-        style.left = `${left + tablistScrollLeft}px`;
-      }
-      style.width = `${width}px`;
+      self.sizeBar(target);
 
       if (cb && typeof cb === 'function') {
         cb();
@@ -3481,6 +3468,43 @@ Tabs.prototype = {
     }
 
     animationTimeout(callback);
+  },
+
+  /**
+   * Recalculate the sizes on the animated bar
+   * @param {jQuery} target The target tab element
+   * @private
+   * @returns {void}
+   */
+  sizeBar(target) {
+    if ((!this.animatedBar || (this.animatedBar && !this.animatedBar[0]))) {
+      return;
+    }
+    target = target || this.element.find('.tab.is-selected');
+    const style = this.animatedBar[0].style;
+    const scrollingTablist = this.tablistContainer;
+    const tablistScrollLeft = scrollingTablist[0].scrollLeft;
+    const tablistScrollWidth = scrollingTablist[0].scrollWidth;
+
+    const targetStyle = window.getComputedStyle(target[0], null);
+    let paddingRight = parseInt(targetStyle.getPropertyValue('padding-right'), 10) || 0;
+    const width = parseInt(targetStyle.getPropertyValue('width'), 10) || 0;
+
+    if (target.is('.tab')) {
+      const anchorStyle = window.getComputedStyle(target.children('a')[0]);
+      paddingRight += parseInt(anchorStyle.getPropertyValue('padding-right'), 10) || 0;
+    }
+
+    const left = Locale.isRTL() ?
+      (paddingRight + target.position().left + target.outerWidth(true)) : (target.position().left);
+
+    if (Locale.isRTL()) {
+      style.right = `${tablistScrollWidth + paddingRight - (left + tablistScrollLeft)}px`;
+    } else {
+      style.left = `${left + tablistScrollLeft}px`;
+    }
+    style.width = `${width}px`;
+    this.focusState[0].style.width = `${width}px`;
   },
 
   /**
@@ -3917,6 +3941,11 @@ Tabs.prototype = {
       .removeAttr('aria-selected')
       .removeAttr('tabindex');
 
+    if (this.ro) {
+      this.ro.disconnect();
+      delete this.ro;
+    }
+
     if (this.settings.moduleTabsTooltips || this.settings.multiTabsTooltips) {
       this.anchors.each(function () {
         const api = $(this).data('tooltip');
@@ -3957,6 +3986,12 @@ Tabs.prototype = {
       this.animatedBar = undefined;
     }
     $('.tab-panel input').off('error.tabs valid.tabs');
+
+    if (this.addTabButton) {
+      this.addTabButton.remove();
+      this.addTabButton = undefined;
+    }
+    this.element.find('.close.icon').remove();
 
     return this;
   },

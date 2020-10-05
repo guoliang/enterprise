@@ -42,6 +42,7 @@ const COMPONENT_NAME = 'pie';
  * @param {string} [settings.tooltip.show='label (value)'] Controls what is visible in
   the tooltip, this can be value, label or percent or custom function.
  * @param {string} [settings.tooltip.formatter='.0f'] The d3.formatter string.
+ * @pram {boolean} [settings.fitHeight=true] If true chart height will fit in parent available height.
  * @param {object} [settings.emptyMessage] An empty message will be displayed when there is no chart data.
  * This accepts an object of the form emptyMessage:
  * `{title: 'No Data Available',
@@ -73,6 +74,7 @@ const PIE_DEFAULTS = {
     show: 'label (value)', // value, label, label (value) or percent or custom function
     formatter: '.0f'
   },
+  fitHeight: true,
   emptyMessage: { title: (Locale ? Locale.translate('NoData') : 'No Data Available'), info: '', icon: 'icon-empty-no-data' }
 };
 
@@ -106,6 +108,8 @@ Pie.prototype = {
       return this;
     }
 
+    this.initialSelectCall = false;
+
     this
       .build()
       .handleEvents();
@@ -129,6 +133,7 @@ Pie.prototype = {
    */
   build() {
     const self = this;
+    const s = this.settings;
 
     self.svg = d3.select(this.element[0])
       .append('svg');
@@ -140,35 +145,65 @@ Pie.prototype = {
     self.mainGroup.append('g').attr('class', 'lines');
     this.element.addClass('chart-pie');
 
-    if (this.settings.showMobile) {
-      this.settings.legendPlacement = 'bottom';
+    if (s.showMobile) {
+      s.legendPlacement = 'bottom';
     }
 
-    if (self.settings.legendPlacement) {
-      this.element.addClass(`has-${self.settings.legendPlacement}-legend`);
+    if (s.legendPlacement) {
+      this.element.addClass(`has-${s.legendPlacement}-legend`);
     }
 
     const w = parseInt(this.element.width(), 10);
-    const h = parseInt(this.element.height(), 10);
+    let h = parseInt(this.element.height(), 10);
 
     const dims = {
       height: h,
       width: w
     };
+    dims.isSmallView = dims.width < 360;
+    const legendBotOnSingleWidget = s.legendPlacement === 'bottom' &&
+      dims.isSmallView && !s.showMobile;
 
-    if ((this.settings.lines.show === 'label' && this.settings.legendPlacement === 'bottom')
-      || (this.settings.lines.show === 'label' && this.settings.showLegend === 'false')) {
+    if (legendBotOnSingleWidget) {
+      this.element.closest('.widget-content').css({ height: '', 'min-height': '' });
+      h = parseInt(this.element.height(), 10);
+      dims.height = h;
+    }
+
+    if (!legendBotOnSingleWidget && s.fitHeight && dims.isSmallView) {
+      h = utils.getParentAvailableHeight(self.element[0]);
+      dims.height = h;
+    }
+
+    if ((s.lines.show === 'label' && s.legendPlacement === 'bottom') ||
+      (s.lines.show === 'label' && s.showLegend === 'false')) {
       self.mainGroup
         .attr('transform', `translate(${dims.width * 0.67777}, ${dims.height / 2})`);
     }
 
-    if (self.settings.legendPlacement === 'right') {
+    if (s.legendPlacement === 'right') {
       dims.width = w * 0.75;
     }
 
-    if (this.settings.showMobile) {
+    if (s.showMobile) {
       dims.height = h * 0.80; // make some more room for the legend
       this.element.addClass('is-mobile');
+    }
+
+    let heightAdjusted = 0;
+    if (legendBotOnSingleWidget) {
+      heightAdjusted = 35;
+      this.element.closest('.widget-content').css({ height: 'auto', 'min-height': 'auto' });
+      let minHeight = dims.height - (23 + (Math.round(s.dataset[0].data.length / 2) * 25));
+      if (this.element.closest('.auto-height ').length) {
+        minHeight += 78;
+      }
+      if (s.fitHeight) {
+        minHeight -= utils.getSiblingsHeight(self.element[0]);
+      }
+
+      $(this.svg.node()).css({ 'min-height': minHeight });
+      dims.height = parseInt(this.element.height(), 10) + heightAdjusted;
     }
 
     dims.radius = Math.min(dims.width, dims.height) / 2;
@@ -182,7 +217,7 @@ Pie.prototype = {
 
     self.arc = d3.arc()
       .outerRadius(dims.radius * 0.75)
-      .innerRadius(self.settings.isDonut ? dims.radius * 0.5 : 0);
+      .innerRadius(s.isDonut ? dims.radius * 0.5 : 0);
 
     // Influences the label position
     self.outerArc = d3.arc()
@@ -190,18 +225,28 @@ Pie.prototype = {
       .outerRadius((dims.radius * 0.75 + 20));
 
     self.svg
-      .attr('width', self.settings.legendPlacement === 'right' ? '75%' : '100%')
-      .attr('height', self.settings.showMobile ? '80%' : '100%');
+      .attr('width', s.legendPlacement === 'right' ? '75%' : '100%')
+      .attr('height', s.showMobile ? '80%' : '100%');
 
     self.mainGroup
-      .attr('transform', `translate(${dims.width / 2},${dims.height / 2})`);
+      .attr('transform', `translate(${dims.width / 2},${((dims.height - heightAdjusted) / 2)})`);
 
+    if (dims.isSmallView) {
+      if (!legendBotOnSingleWidget) {
+        self.svg.attr('height', `${(dims.height)}px`);
+        this.element.css({ height: 'auto' });
+      }
+      if (!s.fitHeight) {
+        this.element.closest('.widget-content').css({ height: '' });
+        this.element.css({ height: 'auto' });
+      }
+    }
     // move the origin of the group's coordinate space to the center of the SVG element
     dims.center = { x: (dims.width / 2), y: dims.height / 2 };
 
     self.key = function (d) { return d.data.name; };
-    const isEmpty = !self.settings.dataset || self.settings.dataset.length === 0;
-    this.chartData = !isEmpty ? self.settings.dataset[0].data : [];
+    const isEmpty = !s.dataset || s.dataset.length === 0;
+    this.chartData = !isEmpty ? s.dataset[0].data : [];
     this.sum = d3.sum(this.chartData, function (d) { return d.value; });
 
     // Calculate the percentages
@@ -222,30 +267,32 @@ Pie.prototype = {
     // Handle zero sum or empty pies
     if (isEmpty || sum === 0 || isNaN(sum)) {
       const palette = theme.themeColors().palette;
-      this.chartData.push({ data: {}, color: palette.graphite['30'].value, name: 'Empty-Pie', value: 100, percent: 1, percentRound: 100 });
+      this.chartData.push({ data: {}, color: palette.slate['30'].value, name: 'Empty-Pie', value: 100, percent: 1, percentRound: 100 });
     }
 
     self.updateData(self.chartData);
-    if (self.settings.showTooltips) {
+    if (s.showTooltips) {
       charts.appendTooltip('is-pie');
     }
 
-    if (this.settings.showLegend) {
+    if (s.showLegend) {
       const series = self.chartData.map(function (d) {
-        let name = charts.formatToSettings(d, self.settings.legend);
+        let name = charts.formatToSettings(d, s.legend);
 
-        if (self.settings.legendFormatter) {
-          name = `${d.name} (${d3.format(self.settings.legendFormatter)(d.value)})`;
+        if (s.legendFormatter) {
+          name = `${d.name} (${d3.format(s.legendFormatter)(d.value)})`;
         }
 
         if (d.name === 'Empty-Pie') {
           name = '';
         }
-        return { name, display: 'twocolumn', placement: self.settings.legendPlacement, color: d.color };
+        return { name, display: 'twocolumn', placement: s.legendPlacement, color: d.color };
       });
 
-      this.settings.svg = self.svg;
-      charts.addLegend(series, 'pie', this.settings, this.element);
+      s.svg = self.svg;
+      charts.addLegend(series, 'pie', s, this.element);
+      const setClass = heightAdjusted > 0 ? 'addClass' : 'removeClass';
+      this.element.find('.chart-legend')[setClass]('adjusted-height');
     }
 
     this.setInitialSelected();
@@ -337,6 +384,19 @@ Pie.prototype = {
     const slice = self.svg.select('.slices').selectAll('path.slice')
       .data(self.pie(data), self.key);
 
+    const formatters = {
+      str: null,
+      isTooltip: self.settings.tooltip?.formatter &&
+        self.settings.tooltip.formatter !== PIE_DEFAULTS.tooltip.formatter,
+      isLines: self.settings.lines?.formatter &&
+        self.settings.lines.formatter !== PIE_DEFAULTS.lines.formatter
+    };
+    if (formatters.isTooltip) {
+      formatters.str = self.settings.tooltip.formatter;
+    } else if (formatters.isLines) {
+      formatters.str = self.settings.lines.formatter;
+    }
+
     const getOffset = (node) => {
       const body = document.body;
       let rect;
@@ -378,7 +438,7 @@ Pie.prototype = {
           task: isSelected ? 'unselected' : 'selected',
           container: self.element,
           selector: isSelected ? '.chart-container .is-selected' : this,
-          isTrigger: !isSelected,
+          isTrigger: self.initialSelectCall ? false : !isSelected,
           d: d.data,
           i,
           type: self.settings.type,
@@ -386,7 +446,7 @@ Pie.prototype = {
           svg: self.svg
         });
 
-        if (isSelected) {
+        if (isSelected && !self.initialSelectCall) {
           /**
            * Fires when arc/slice is selected.
            * @event selected
@@ -454,10 +514,15 @@ Pie.prototype = {
         };
 
         const value = charts.formatToSettings(d, self.settings.tooltip);
-        content = d.data.tooltip || value;
-        content = content.replace('{{percent}}', `${d.data.percentRound}%`);
+        const formatted = {
+          value: formatters.str && !formatters.isTooltip ?
+            d3.format(formatters.str)(d.value) : value,
+          percent: formatters.str ? d3.format(formatters.str)(d.data.percent) : `${isNaN(d.data.percentRound) ? 0 : d.data.percentRound}%`
+        };
+        content = d.data.tooltip || formatted.value;
+        content = content.replace('{{percent}}', `${formatted.percent}`);
         content = content.replace('{{value}}', d.value);
-        content = content.replace('%percent%', `${d.data.percentRound}%`);
+        content = content.replace('%percent%', `${formatted.percent}`);
         content = content.replace('%value%', d.value);
 
         if (content.indexOf('<b>') === -1) {
@@ -617,10 +682,12 @@ Pie.prototype = {
 
       if (d.data.selected && selected < 1) {
         selected++;
+        self.initialSelectCall = true;
         selector = d3.select(this);
         selector.on(`click.${self.namespace}`).call(selector.node(), selector.datum(), i);
       }
     });
+    this.initialSelectCall = false;
   },
 
   /**

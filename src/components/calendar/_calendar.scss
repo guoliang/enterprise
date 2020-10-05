@@ -27,12 +27,24 @@
     }
 
     .accordion-header > button {
-      margin: 0 0 7px 10px;
+      margin: 0 0 2px 10px;
 
       svg {
         top: 0;
       }
     }
+
+    .accordion-header {
+      &.is-focused {
+        &:not(.hide-focus) {
+          border-top-color: $accordion-focused-border-color;
+        }
+      }
+    }
+  }
+
+  .calendar-event-legend {
+    display: none;
   }
 
   // Changes to the monthview container
@@ -40,12 +52,87 @@
     background-color: $calendar-bg-color;
     flex: 1 1 auto;
 
+    &.monthview {
+      &.hidden {
+        ~ .calendar-event-details {
+          @media (max-width: $breakpoint-wide-tablet - 1) {
+            display: none;
+          }
+        }
+      }
+    }
+
     .monthview-table {
       table-layout: fixed;
     }
 
     .monthview-header {
       height: 46px;
+    }
+
+    .monthview-legend {
+      padding: 25px 5px 15px;
+    }
+  }
+
+  // Mobile Legend
+  @include respond-to(phabletdown) {
+    .calendar-event-legend {
+      display: block;
+      padding: 20px 20px 0;
+
+      .calendar-event-legend-item {
+        display: inline-block;
+        margin: 0 20px 10px 0;
+
+        .calendar-event-legend-swatch {
+          border-radius: 50px;
+          display: inline-block;
+          height: 12px;
+          margin-right: 5px;
+          width: 12px;
+
+          &.ruby {
+            background-color: $ids-color-palette-ruby-60;
+          }
+
+          &.amber {
+            background-color: $ids-color-palette-amber-60;
+          }
+
+          &.emerald {
+            background-color: $ids-color-palette-emerald-60;
+          }
+
+          &.azure {
+            background-color: $ids-color-palette-azure-60;
+          }
+
+          &.turquoise {
+            background-color: $ids-color-palette-turquoise-60;
+          }
+
+          &.amethyst {
+            background-color: $ids-color-palette-amethyst-60;
+          }
+
+          &.slate {
+            background-color: $ids-color-palette-slate-60;
+          }
+
+          &.graphite {
+            background-color: $ids-color-palette-graphite-60;
+          }
+        }
+
+        .calendar-event-legend-text {
+          @include font-size(12);
+
+          color: $datepicker-day-color;
+          position: relative;
+          top: -2px;
+        }
+      }
     }
   }
 
@@ -68,7 +155,7 @@
     color: $font-color-extrahighcontrast;
     display: block;
     height: 18px;
-    margin: 4px 10px;
+    margin: 3px 10px 0;
     text-align: left;
     width: auto;
 
@@ -93,19 +180,19 @@
     text-decoration: none;
 
     &:focus {
-      border-color: $theme-color-brand-primary-base !important;
+      border-color: $ids-color-brand-primary-base !important;
       box-shadow: 0 0 4px 1px $focus-box-shadow-color;
       outline: none;
     }
 
     .calendar-upcoming-date {
       display: block;
-      font-size: $theme-size-font-base;
+      font-size: $ids-size-font-base;
       padding: 10px;
     }
 
     .calendar-upcoming-event-color {
-      background-color: $theme-color-palette-azure-60;
+      background-color: $ids-color-palette-azure-60;
       border: 1px solid transparent;
       border-radius: 50%;
       color: transparent;
@@ -117,41 +204,41 @@
       width: 8px;
 
       &.ruby {
-        background-color: $theme-color-palette-ruby-60;
+        background-color: $ids-color-palette-ruby-60;
       }
 
       &.amber {
-        background-color: $theme-color-palette-amber-60;
+        background-color: $ids-color-palette-amber-60;
       }
 
       &.emerald {
-        background-color: $theme-color-palette-emerald-60;
+        background-color: $ids-color-palette-emerald-60;
       }
 
       &.azure {
-        background-color: $theme-color-palette-azure-60;
+        background-color: $ids-color-palette-azure-60;
       }
 
       &.turquoise {
-        background-color: $theme-color-palette-turquoise-60;
+        background-color: $ids-color-palette-turquoise-60;
       }
 
       &.amethyst {
-        background-color: $theme-color-palette-amethyst-60;
+        background-color: $ids-color-palette-amethyst-60;
       }
 
       &.slate {
-        background-color: $theme-color-palette-slate-60;
+        background-color: $ids-color-palette-slate-60;
       }
 
       &.graphite {
-        background-color: $theme-color-palette-graphite-60;
+        background-color: $ids-color-palette-graphite-60;
       }
     }
 
     .calendar-upcoming-description {
       display: inline-block;
-      font-size: $theme-size-font-sm;
+      font-size: $ids-size-font-sm;
       left: 5px;
       overflow-wrap: break-word;
       position: relative;
@@ -161,7 +248,7 @@
 
     .calendar-upcoming-status-text {
       display: block;
-      font-size: $theme-size-font-sm;
+      font-size: $ids-size-font-sm;
       font-style: italic;
       left: 25px;
       position: relative;
@@ -175,11 +262,25 @@
     .calendar-upcoming-duration {
       display: block;
       float: right;
-      font-size: $theme-size-font-sm;
+      font-size: $ids-size-font-sm;
       font-style: italic;
       position: relative;
       right: 0;
       top: -12px;
+    }
+  }
+
+  .calendar-event-details-mobile.listview {
+    li:first-child {
+      border-top: 1px solid $calendar-line-color;
+    }
+
+    li {
+      border-bottom-color: $calendar-line-color;
+    }
+
+    @media (min-width: $breakpoint-wide-tablet) {
+      display: none !important;
     }
   }
 }
@@ -216,7 +317,7 @@
     background-color: $calendar-bg-color;
 
     .data {
-      font-size: $theme-size-font-sm;
+      font-size: $ids-size-font-sm;
     }
 
     .icon {
@@ -240,57 +341,61 @@
   }
 
   .accordion-header {
+    &:hover > a {
+      text-decoration: none;
+    }
+
     &.has-chevron > a {
       line-height: 15px;
       width: calc(100% - 40px);
     }
 
     a {
-      color: $theme-color-palette-white;
-      font-size: $theme-size-font-lg;
+      color: $ids-color-palette-white;
+      font-size: $ids-size-font-lg;
       -webkit-font-smoothing: antialiased;
       font-weight: 400;
     }
 
     .btn {
-      margin-left: -4px;
-      margin-top: -7px;
+      margin-left: -3px;
+      margin-top: 3px;
 
       .chevron {
-        color: $theme-color-palette-white;
+        color: $ids-color-palette-white;
       }
     }
 
     &.ruby {
-      background-color: $theme-color-palette-ruby-60;
+      background-color: $ids-color-palette-ruby-60;
     }
 
     &.amber {
-      background-color: $theme-color-palette-amber-60;
+      background-color: $ids-color-palette-amber-60;
     }
 
     &.emerald {
-      background-color: $theme-color-palette-emerald-60;
+      background-color: $ids-color-palette-emerald-60;
     }
 
     &.azure {
-      background-color: $theme-color-palette-azure-60;
+      background-color: $ids-color-palette-azure-60;
     }
 
     &.turquoise {
-      background-color: $theme-color-palette-turquoise-60;
+      background-color: $ids-color-palette-turquoise-60;
     }
 
     &.amethyst {
-      background-color: $theme-color-palette-amethyst-60;
+      background-color: $ids-color-palette-amethyst-60;
     }
 
     &.slate {
-      background-color: $theme-color-palette-slate-60;
+      background-color: $ids-color-palette-slate-60;
     }
 
     &.graphite {
-      background-color: $theme-color-palette-graphite-60;
+      background-color: $ids-color-palette-graphite-60;
     }
   }
 }
@@ -301,6 +406,11 @@
       width: calc(100% - 66px) !important;
     }
   }
+
+  .container .form-responsive .field .checkbox-label {
+    margin-bottom: 0;
+    margin-top: 0;
+  }
 }
 
 // Styles to reset the modal
@@ -309,18 +419,65 @@
   width: 320px;
 
   .tooltip-content {
-    height: calc(100% - 48px);
+    height: calc(100% - 49px);
     overflow: auto;
     padding: 20px 0 0;
   }
 
   .modal-buttonset {
+    background-color: $modal-bg-color;
+    border-top: 0;
     height: 45px;
     margin-top: 0;
     padding: 0;
+    position: sticky;
+    z-index: 3011;
 
     button {
+      background-color: $modal-bg-color;
+      border-top: 1px solid $modal-btn-border-color;
       width: 50%;
+    }
+  }
+}
+
+@include respond-to(phabletdown) {
+  .calendar-popup.calendar-popup-mobile {
+    height: 100% !important;
+    left: 0 !important;
+    max-width: 100%;
+    top: 0 !important;
+    width: 100% !important;
+
+    .tooltip-content {
+      height: calc(100% - 96px);
+    }
+
+    .modal-buttonset {
+      bottom: 3px;
+      position: absolute;
+      width: 100%;
+    }
+  }
+}
+
+@include respond-to(phonedown) {
+  .calendar {
+    .calendar-event-details-mobile {
+      .listview-micro {
+        padding-right: 10px;
+        position: absolute;
+      }
+    }
+  }
+}
+
+@include respond-to(phabletup) {
+  .calendar {
+    .calendar-event-details {
+      .listview {
+        display: none;
+      }
     }
   }
 }
@@ -328,12 +485,184 @@
 // Responsive Styles
 @include respond-to(phabletdown) {
   .calendar {
+    flex-wrap: wrap;
+
     .calendar-events,
     .calendar-event-details {
       display: none;
     }
 
+    .calendar-event-details {
+      width: 100%;
+
+      .accordion-header,
+      .accordion-pane {
+        display: none;
+      }
+
+      .listview-heading {
+        display: inline-block;
+        width: 80%;
+      }
+
+      .listview-micro {
+        display: inline-block;
+        float: right;
+        margin-top: 2px;
+        text-align: right;
+        width: 20%;
+      }
+
+      .status-swatch {
+        border-radius: 50px;
+        display: inline-block;
+        height: 12px;
+        margin-right: 5px;
+        width: 12px;
+
+        + p {
+          display: inline-block;
+          vertical-align: top;
+        }
+
+        &.ruby {
+          background-color: $ids-color-palette-ruby-60;
+        }
+
+        &.amber {
+          background-color: $ids-color-palette-amber-60;
+        }
+
+        &.emerald {
+          background-color: $ids-color-palette-emerald-60;
+        }
+
+        &.azure {
+          background-color: $ids-color-palette-azure-60;
+        }
+
+        &.turquoise {
+          background-color: $ids-color-palette-turquoise-60;
+        }
+
+        &.amethyst {
+          background-color: $ids-color-palette-amethyst-60;
+        }
+
+        &.slate {
+          background-color: $ids-color-palette-slate-60;
+        }
+
+        &.graphite {
+          background-color: $ids-color-palette-graphite-60;
+        }
+      }
+    }
+
+    .calendar-event-details-mobile {
+      height: auto;
+      margin-bottom: 20px;
+
+      &.listview {
+        cursor: pointer;
+        display: inline-block;
+        width: 100%;
+
+        li {
+          min-height: 70px;
+
+          .container {
+            align-items: center;
+            display: flex;
+          }
+
+          .column-left {
+            float: left;
+            width: 85%;
+          }
+
+          .column-right {
+            float: right;
+            margin-right: 15px;
+            text-align: right;
+            width: 20%;
+          }
+
+          .listview-micro {
+            float: none;
+            width: auto;
+          }
+
+          .icon {
+            color: $button-color-tertiary-initial-font;
+            left: 10px;
+            top: 5px;
+          }
+        }
+      }
+
+      .listview-heading {
+        display: inline-block;
+        width: 80%;
+      }
+
+      .listview-micro {
+        display: inline-block;
+        float: right;
+        margin-top: 2px;
+        text-align: right;
+        width: 20%;
+      }
+
+      .status-swatch {
+        border-radius: 50px;
+        display: inline-block;
+        height: 12px;
+        margin-right: 5px;
+        width: 12px;
+
+        + p {
+          display: inline-block;
+          vertical-align: top;
+        }
+
+        &.ruby {
+          background-color: $ids-color-palette-ruby-60;
+        }
+
+        &.amber {
+          background-color: $ids-color-palette-amber-60;
+        }
+
+        &.emerald {
+          background-color: $ids-color-palette-emerald-60;
+        }
+
+        &.azure {
+          background-color: $ids-color-palette-azure-60;
+        }
+
+        &.turquoise {
+          background-color: $ids-color-palette-turquoise-60;
+        }
+
+        &.amethyst {
+          background-color: $ids-color-palette-amethyst-60;
+        }
+
+        &.slate {
+          background-color: $ids-color-palette-slate-60;
+        }
+
+        &.graphite {
+          background-color: $ids-color-palette-graphite-60;
+        }
+      }
+    }
+
     .calendar-monthview {
+      border-bottom-color: transparent !important;
+      border-right-color: transparent !important;
       width: 100%;
     }
   }
@@ -350,11 +679,80 @@ html[dir='rtl'] {
     .today {
       margin-right: 15px;
     }
+
+    .monthview.is-fullsize.monthview td:last-child {
+      border-left: 0;
+    }
+  }
+
+  .calendar-events .accordion-header > button {
+    margin: -1px 7px 2px 0;
+  }
+
+  .calendar-event {
+    border-left: 0;
+    border-right: 5px solid $ids-color-brand-primary-alt;
+
+    &.event-day-end {
+      border-radius: 3px 0 0 3px;
+      border-right: 0 !important;
+      margin-right: 0;
+    }
+
+    &.event-day-span {
+      border-right: 0 !important;
+    }
+
+    &.event-day-start {
+      border-radius: 0 3px 3px 0;
+      padding-left: 4px;
+      padding-right: 0;
+    }
+
+    &.ruby {
+      border-right: 5px solid $ids-color-palette-ruby-70;
+    }
+
+    &.amber {
+      border-right: 5px solid $ids-color-palette-amber-70;
+    }
+
+    &.emerald {
+      border-right: 5px solid $ids-color-palette-emerald-70;
+    }
+
+    &.turquoise {
+      border-right: 5px solid $ids-color-palette-turquoise-70;
+    }
+
+    &.amethyst {
+      border-right: 5px solid $ids-color-palette-amethyst-70;
+    }
+
+    &.slate {
+      border-right: 5px solid $ids-color-palette-slate-70;
+    }
+
+    &.graphite {
+      border-right: 5px solid $ids-color-palette-graphite-70;
+    }
+
+    .calendar-event-content {
+      padding: 1px 5px;
+      text-align: right;
+    }
   }
 
   .calendar-event-details {
-    border-left: 0;
-    border-right: 1px solid $calendar-line-color;
+    border: 0;
+  }
+
+  .calendar-event-types .checkbox-label {
+    padding-right: 25px;
+
+    &::after {
+      right: 6px !important;
+    }
   }
 
   .calendar-toolbar .monthview-datepicker {
@@ -392,15 +790,15 @@ html[dir='rtl'] {
 .calendar-event {
   @include font-size(11);
 
-  background-color: $theme-color-palette-azure-20;
+  background-color: $ids-color-palette-azure-20;
   border: 1px solid transparent;
-  border-left: 5px solid $theme-color-brand-primary-alt;
+  border-left: 5px solid $ids-color-brand-primary-alt;
   border-radius: 3px;
   color: $font-color-extrahighcontrast;
   cursor: pointer;
   display: block;
   height: 18px;
-  margin: 0 2px 3px;
+  margin: 0 2px;
   width: calc(100% - 4px);
 
   //Event spanning
@@ -445,7 +843,7 @@ html[dir='rtl'] {
   .calendar-event-content {
     color: $calendar-event-color;
     overflow: hidden;
-    padding: 3px 5px;
+    padding: 2px 5px;
     position: relative;
     text-align: left;
     text-overflow: ellipsis;
@@ -465,44 +863,49 @@ html[dir='rtl'] {
   }
 
   &.ruby {
-    background-color: $theme-color-palette-ruby-20;
-    border-left: 5px solid $theme-color-palette-ruby-70;
+    background-color: $ids-color-palette-ruby-20;
+    border-left: 5px solid $ids-color-palette-ruby-70;
   }
 
   &.amber {
-    background-color: $theme-color-palette-amber-30;
-    border-left: 5px solid $theme-color-palette-amber-70;
+    background-color: $ids-color-palette-amber-30;
+    border-left: 5px solid $ids-color-palette-amber-70;
   }
 
   &.emerald {
-    background-color: $theme-color-palette-emerald-30;
-    border-left: 5px solid $theme-color-palette-emerald-70;
+    background-color: $ids-color-palette-emerald-30;
+    border-left: 5px solid $ids-color-palette-emerald-70;
   }
 
   &.turquoise {
-    background-color: $theme-color-palette-turquoise-30;
-    border-left: 5px solid $theme-color-palette-turquoise-70;
+    background-color: $ids-color-palette-turquoise-30;
+    border-left: 5px solid $ids-color-palette-turquoise-70;
   }
 
   &.amethyst {
-    background-color: $theme-color-palette-amethyst-30;
-    border-left: 5px solid $theme-color-palette-amethyst-70;
+    background-color: $ids-color-palette-amethyst-30;
+    border-left: 5px solid $ids-color-palette-amethyst-70;
   }
 
   &.slate {
-    background-color: $theme-color-palette-slate-30;
-    border-left: 5px solid $theme-color-palette-slate-70;
+    background-color: $ids-color-palette-slate-30;
+    border-left: 5px solid $ids-color-palette-slate-70;
   }
 
   &.graphite {
-    background-color: $theme-color-palette-graphite-30;
-    border-left: 5px solid $theme-color-palette-graphite-70;
+    background-color: $ids-color-palette-graphite-30;
+    border-left: 5px solid $ids-color-palette-graphite-70;
   }
 
   &:focus {
-    border-color: #368ac0;
+    border-color: $ids-color-palette-azure-60;
     box-shadow: 0 0 4px 3px rgba(54, 138, 192, 0.3);
     outline: none;
     outline-color: transparent;
   }
+}
+
+.calendar-event-spacer {
+  display: block;
+  height: 18px;
 }

@@ -112,7 +112,7 @@ describe('Accordion Collapse Children tests', () => {
 
 describe('Accordion example-disabled tests', () => {
   beforeEach(async () => {
-    await utils.setPage('/components/accordion/example-disabled');
+    await utils.setPage('/components/accordion/example-disabled?layout=nofrills');
   });
 
   it('Should not have errors', async () => {
@@ -123,6 +123,17 @@ describe('Accordion example-disabled tests', () => {
     expect(await element.all(by.css('.accordion-header.is-disabled')).count()).toEqual(4);
     expect(await element.all(by.css('.accordion.is-disabled')).count()).toEqual(1);
   });
+
+  if (utils.isChrome() && utils.isCI()) {
+    it('Should not visual regress on example-disabled', async () => {
+      const mainEl = await element(by.css('div[role=main]'));
+      await browser.driver
+        .wait(protractor.ExpectedConditions.presenceOf(mainEl), config.waitsFor);
+      await browser.driver.sleep(config.sleepLonger);
+
+      expect(await browser.imageComparison.checkScreen('accordion-disabled')).toEqual(0);
+    });
+  }
 });
 
 describe('Accordion example-index tests', () => {
@@ -179,9 +190,9 @@ describe('Accordion example-index tests', () => {
       await buttonEl.click();
 
       const containerEl = await element(by.className('container'));
-      await browser.driver.sleep(config.sleep);
+      await browser.driver.sleep(config.sleepLonger);
 
-      expect(await browser.protractorImageComparison.checkElement(containerEl, 'accordion-index')).toEqual(0);
+      expect(await browser.imageComparison.checkElement(containerEl, 'accordion-index')).toEqual(0);
     });
   }
 });
@@ -203,5 +214,38 @@ describe('Accordion expand multiple tests', () => {
     await element.all(by.css('#nested-accordion > .accordion-header.is-expanded + .accordion-pane.is-expanded')).get(1).getSize().then((size) => {
       expect(size.height).not.toBeLessThan(50);
     });
+  });
+});
+
+describe('Accordion adding headers dynamically tests', () => {
+  beforeEach(async () => {
+    await utils.setPage('/components/accordion/test-add-dynamically.html?layout=nofrills');
+  });
+
+  it('should not have errors', async () => {
+    await utils.checkForErrors();
+  });
+
+  it('can dynamically add and navigate to new accordion headers', async () => {
+    // Add two headers
+    const addBtn = await element(by.id('addFavs'));
+    await addBtn.click();
+    await addBtn.click();
+
+    // Expand the "Favorites" header
+    await element.all(by.css('#test-accordion > .accordion-header')).last().click();
+    await browser.driver.sleep(config.sleep);
+
+    // Tab to the last of the new headers and check its content
+    await browser.driver.actions()
+      .sendKeys(protractor.Key.TAB)
+      .sendKeys(protractor.Key.TAB)
+      .sendKeys(protractor.Key.TAB)
+      .sendKeys(protractor.Key.TAB)
+      .sendKeys(protractor.Key.TAB)
+      .perform();
+    const focusedElem = await browser.driver.switchTo().activeElement();
+
+    expect(await focusedElem.getText()).toEqual('Dynamically-Added Favorite (1)');
   });
 });

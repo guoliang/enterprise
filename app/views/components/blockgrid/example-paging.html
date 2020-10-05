@@ -10,48 +10,86 @@
     var data = [];
 
     data.push({
-      image: '/images/8.jpg',
+      image: '{{basepath}}/images/3.jpg',
       title: 'Sheena Taylor',
       subtitle: 'Infor, Developer',
       id: 1
     });
     data.push({
-      image: '/images/9.jpg',
+      image: '{{basepath}}/images/8.jpg',
       title: 'Jane Taylor',
       subtitle: 'Infor, Developer',
       id: 2
     });
     data.push({
-      image: '/images/10.jpg',
+      image: '{{basepath}}/images/13.jpg',
       title: 'Sam Smith',
       subtitle: 'Infor, SVP',
       id: 3
     });
     data.push({
-      image: '/images/11.jpg',
+      image: '{{basepath}}/images/22.jpg',
       title: 'Mary Pane',
       subtitle: 'Infor, Developer',
       id: 4
     });
     data.push({
-      image: '/images/12.jpg',
+      image: '{{basepath}}/images/3.jpg',
       title: 'Paula Paulson',
       subtitle: 'Infor, Architect',
       id: 5
     });
     data.push({
-      image: '/images/13.jpg',
+      image: '{{basepath}}/images/8.jpg',
       title: 'Nancy Packer',
       subtitle: 'Infor, Manager',
       id: 6
+    });
+    data.push({
+      image: '{{basepath}}/images/13.jpg',
+      title: 'Danielle Land',
+      subtitle: 'Infor, Developer',
+      id: 7
+    });
+    data.push({
+      image: '{{basepath}}/images/22.jpg',
+      title: 'Donna Horrocks',
+      subtitle: 'Infor, Developer',
+      id: 8
+    });
+    data.push({
+      image: '{{basepath}}/images/3.jpg',
+      title: 'Mary McConnel',
+      subtitle: 'Infor, SVP',
+      id: 9
+    });
+    data.push({
+      image: '{{basepath}}/images/8.jpg',
+      title: 'Julie Ayers',
+      subtitle: 'Infor, Developer',
+      id: 10
+    });
+    data.push({
+      image: '{{basepath}}/images/13.jpg',
+      title: 'Emily Bronte',
+      subtitle: 'Infor, Architect',
+      id: 11
+    });
+    data.push({
+      image: '{{basepath}}/images/22.jpg',
+      title: 'Rita Coyle',
+      subtitle: 'Infor, Manager',
+      id: 12
     });
 
     $('#blockgrid').blockgrid({
       dataset: data,
       selectable: 'multiple',
       paging: true,
-      pagesize: 3,
-      pagesizes: [3, 10, 25, 50, 75]
+      pagerSettings: {
+        pagesize: 3,
+        pagesizes: [3, 10, 25, 50, 75]
+      }
     }).on('selected', function (e, args) {
       console.log(args);
     }).on('unselected', function (e, args) {
